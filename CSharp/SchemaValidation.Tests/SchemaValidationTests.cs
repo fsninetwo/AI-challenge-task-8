@@ -43,14 +43,17 @@ public class SchemaValidationTests
         });
 
         // Make phone number optional
-        _userSchema.Optional(nameof(User.PhoneNumber));
+        if (_userSchema is ObjectValidator<User> userValidator)
+        {
+            userValidator.MarkPropertyAsOptional(nameof(User.PhoneNumber));
 
-        // Add condition: postal code is required only for US addresses
-        _userSchema
-            .When(nameof(User.Address), user => (user.Address?.Country ?? "").Equals("USA", StringComparison.OrdinalIgnoreCase))
-            .DependsOn<Address, string>(nameof(User.Address), nameof(User.PhoneNumber), (address, phone) => 
-                address.Country.Equals("USA", StringComparison.OrdinalIgnoreCase) && 
-                phone is not null);
+            // Add condition: postal code is required only for US addresses
+            userValidator
+                .When(nameof(User.Address), user => (user.Address?.Country ?? "").Equals("USA", StringComparison.OrdinalIgnoreCase))
+                .DependsOn<Address, string>(nameof(User.Address), nameof(User.PhoneNumber), (address, phone) => 
+                    address.Country.Equals("USA", StringComparison.OrdinalIgnoreCase) && 
+                    phone is not null);
+        }
     }
 
     [Fact]
@@ -80,6 +83,7 @@ public class SchemaValidationTests
 
         // Assert
         Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     [Fact]
@@ -109,7 +113,8 @@ public class SchemaValidationTests
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Email", result.ErrorMessage);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Email));
+        Assert.Contains("Pattern validation", result.Errors[0].Message);
     }
 
     [Fact]
@@ -139,7 +144,8 @@ public class SchemaValidationTests
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Name", result.ErrorMessage);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Name));
+        Assert.Contains("Minimum length", result.Errors[0].Message);
     }
 
     [Fact]
@@ -159,7 +165,8 @@ public class SchemaValidationTests
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Pattern validation", result.ErrorMessage);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(Address.PostalCode));
+        Assert.Contains("Pattern validation", result.Errors[0].Message);
     }
 
     [Fact]
@@ -189,6 +196,7 @@ public class SchemaValidationTests
 
         // Assert
         Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     [Fact]
@@ -218,6 +226,7 @@ public class SchemaValidationTests
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("requires a valid phone number", result.ErrorMessage.ToLower());
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Address));
+        Assert.Contains("requires a valid phone number", result.Errors[0].Message.ToLower());
     }
 } 

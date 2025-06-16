@@ -6,7 +6,7 @@ using SchemaValidation.Core;
 
 namespace SchemaValidation.Validators;
 
-public sealed class ObjectValidator<T> : Validator<T>
+public sealed class ObjectValidator<T> : Validator<T> where T : class
 {
     private readonly Dictionary<string, (Validator<object> Validator, bool IsRequired)> _schema;
     private readonly HashSet<string> _allowedProperties;
@@ -50,12 +50,13 @@ public sealed class ObjectValidator<T> : Validator<T>
         return this;
     }
 
-    public override ValidationResult Validate(T value)
+    public override ValidationResult<T> Validate(T value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
         var propertyDict = properties.ToDictionary(p => p.Name, p => p);
+        var errors = new List<ValidationError>();
 
         // Check for unknown properties if strict schema is enabled
         if (!_allowAdditionalProperties)
@@ -63,8 +64,9 @@ public sealed class ObjectValidator<T> : Validator<T>
             var unknownProperties = propertyDict.Keys.Except(_allowedProperties).ToList();
             if (unknownProperties.Any())
             {
-                return ValidationResult.Failure(
-                    ErrorMessage ?? $"Unknown properties found: {string.Join(", ", unknownProperties)}");
+                errors.Add(new ValidationError(
+                    $"Unknown properties found: {string.Join(", ", unknownProperties)}"));
+                return ValidationResult.Failure<T>(errors);
             }
         }
 
@@ -75,8 +77,9 @@ public sealed class ObjectValidator<T> : Validator<T>
             {
                 if (isRequired)
                 {
-                    return ValidationResult.Failure(
-                        ErrorMessage ?? $"Required property '{propertyName}' is missing");
+                    errors.Add(new ValidationError(
+                        $"Required property '{propertyName}' is missing",
+                        propertyName));
                 }
                 continue;
             }
@@ -95,8 +98,10 @@ public sealed class ObjectValidator<T> : Validator<T>
                     if (!propertyDict.TryGetValue(property1Name, out var property1Info) ||
                         !propertyDict.TryGetValue(property2Name, out var property2Info))
                     {
-                        return ValidationResult.Failure(
-                            ErrorMessage ?? $"Property '{propertyName}' depends on missing properties '{property1Name}' or '{property2Name}'");
+                        errors.Add(new ValidationError(
+                            $"Property '{propertyName}' depends on missing properties '{property1Name}' or '{property2Name}'",
+                            propertyName));
+                        continue;
                     }
 
                     var property1Value = property1Info.GetValue(value);
@@ -104,8 +109,9 @@ public sealed class ObjectValidator<T> : Validator<T>
 
                     if (!rule(value, property1Value, property2Value))
                     {
-                        return ValidationResult.Failure(
-                            ErrorMessage ?? $"Property '{propertyName}' requires a valid phone number when the country is USA");
+                        errors.Add(new ValidationError(
+                            $"Property '{propertyName}' requires a valid phone number when the country is USA",
+                            propertyName));
                     }
                 }
             }
@@ -114,8 +120,9 @@ public sealed class ObjectValidator<T> : Validator<T>
             {
                 if (isRequired)
                 {
-                    return ValidationResult.Failure(
-                        ErrorMessage ?? $"Required property '{propertyName}' cannot be null");
+                    errors.Add(new ValidationError(
+                        $"Required property '{propertyName}' cannot be null",
+                        propertyName));
                 }
                 continue;
             }
@@ -123,11 +130,14 @@ public sealed class ObjectValidator<T> : Validator<T>
             var result = validator.Validate(propertyValue);
             if (!result.IsValid)
             {
-                return ValidationResult.Failure(
-                    ErrorMessage ?? $"Property '{propertyName}': {result.ErrorMessage}");
+                errors.AddRange(result.Errors.Select(e => new ValidationError(
+                    $"Property '{propertyName}': {e.Message}",
+                    propertyName)));
             }
         }
 
-        return ValidationResult.Success();
+        return errors.Count > 0
+            ? ValidationResult.Failure<T>(errors)
+            : ValidationResult.Success<T>();
     }
 } 

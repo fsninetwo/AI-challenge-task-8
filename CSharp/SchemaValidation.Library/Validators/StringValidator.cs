@@ -40,19 +40,19 @@ public sealed class StringValidator : Validator<string>
         return this;
     }
 
-    public override ValidationResult Validate(string value)
+    public override ValidationResult<string> Validate(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         if (_minLength.HasValue && value.Length < _minLength.Value)
-            return ValidationResult.Failure(ErrorMessage ?? $"Minimum length is {_minLength.Value}");
+            return CreateError($"Minimum length is {_minLength.Value}");
 
         if (_maxLength.HasValue && value.Length > _maxLength.Value)
-            return ValidationResult.Failure(ErrorMessage ?? $"Maximum length is {_maxLength.Value}");
+            return CreateError($"Maximum length is {_maxLength.Value}");
 
         if (_pattern is not null && !Regex.IsMatch(value, _pattern))
-            return ValidationResult.Failure(_patternErrorMessage ?? ErrorMessage ?? "Pattern validation failed");
+            return CreateError(_patternErrorMessage ?? "Pattern validation failed");
 
-        return ValidationResult.Success();
+        return ValidationResult.Success<string>();
     }
 } 

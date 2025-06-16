@@ -1,12 +1,11 @@
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators
+namespace SchemaValidation.Validators;
+
+public sealed class BooleanValidator : Validator<bool>
 {
-    public class BooleanValidator : Validator<bool>
+    public override ValidationResult<bool> Validate(bool value)
     {
-        public override ValidationResult Validate(bool value)
-        {
-            return new ValidationResult(true);
-        }
+        return ValidationResult.Success<bool>();
     }
 } 
