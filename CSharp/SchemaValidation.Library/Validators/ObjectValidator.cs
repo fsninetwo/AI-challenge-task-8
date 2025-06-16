@@ -11,8 +11,7 @@ public sealed class ObjectValidator<T> : Validator<T>
     private readonly Dictionary<string, (Validator<object> Validator, bool IsRequired)> _schema;
     private readonly HashSet<string> _allowedProperties;
     private bool _allowAdditionalProperties = true;
-    private Dictionary<string, Func<T, bool>>? _conditionalValidations;
-    private Dictionary<(string, string), Func<object?, object?, bool>>? _propertyDependencies;
+    private Dictionary<(string, string, string), Func<T, object?, object?, bool>>? _dependencyRules;
 
     public ObjectValidator(Dictionary<string, Validator<object>> schema)
     {
@@ -24,7 +23,7 @@ public sealed class ObjectValidator<T> : Validator<T>
         _allowedProperties = new HashSet<string>(schema.Keys);
     }
 
-    public ObjectValidator<T> Optional(string propertyName)
+    public void MarkPropertyAsOptional(string propertyName)
     {
         ArgumentException.ThrowIfNullOrEmpty(propertyName);
         if (_schema.ContainsKey(propertyName))
@@ -32,33 +31,22 @@ public sealed class ObjectValidator<T> : Validator<T>
             var (validator, _) = _schema[propertyName];
             _schema[propertyName] = (validator, false);
         }
-        return this;
+    }
+
+    public void AddDependencyRule(string propertyName, string property1Name, string property2Name, Func<T, object?, object?, bool> rule)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(propertyName);
+        ArgumentException.ThrowIfNullOrEmpty(property1Name);
+        ArgumentException.ThrowIfNullOrEmpty(property2Name);
+        ArgumentNullException.ThrowIfNull(rule);
+
+        _dependencyRules ??= new Dictionary<(string, string, string), Func<T, object?, object?, bool>>();
+        _dependencyRules[(propertyName, property1Name, property2Name)] = rule;
     }
 
     public ObjectValidator<T> StrictSchema()
     {
         _allowAdditionalProperties = false;
-        return this;
-    }
-
-    public ObjectValidator<T> When(string propertyName, Func<T, bool> condition)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(propertyName);
-        ArgumentNullException.ThrowIfNull(condition);
-
-        _conditionalValidations ??= new Dictionary<string, Func<T, bool>>();
-        _conditionalValidations[propertyName] = condition;
-        return this;
-    }
-
-    public ObjectValidator<T> DependsOn(string propertyName, string dependsOnProperty, Func<object?, object?, bool> validator)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(propertyName);
-        ArgumentException.ThrowIfNullOrEmpty(dependsOnProperty);
-        ArgumentNullException.ThrowIfNull(validator);
-
-        _propertyDependencies ??= new Dictionary<(string, string), Func<object?, object?, bool>>();
-        _propertyDependencies[(propertyName, dependsOnProperty)] = validator;
         return this;
     }
 
@@ -95,35 +83,29 @@ public sealed class ObjectValidator<T> : Validator<T>
 
             var propertyValue = propertyInfo.GetValue(value);
 
-            // Check if property should be validated based on conditions
-            if (_conditionalValidations?.TryGetValue(propertyName, out var condition) == true)
-            {
-                if (!condition(value))
-                {
-                    continue; // Skip validation if condition is not met
-                }
-            }
-
             // Validate property dependencies
-            if (_propertyDependencies is not null)
+            if (_dependencyRules is not null)
             {
-                var dependencies = _propertyDependencies
+                var dependencies = _dependencyRules
                     .Where(x => x.Key.Item1 == propertyName)
                     .ToList();
 
-                foreach (var ((_, dependsOnProperty), dependencyValidator) in dependencies)
+                foreach (var ((_, property1Name, property2Name), rule) in dependencies)
                 {
-                    if (!propertyDict.TryGetValue(dependsOnProperty, out var dependentPropertyInfo))
+                    if (!propertyDict.TryGetValue(property1Name, out var property1Info) ||
+                        !propertyDict.TryGetValue(property2Name, out var property2Info))
                     {
                         return ValidationResult.Failure(
-                            ErrorMessage ?? $"Property '{propertyName}' depends on missing property '{dependsOnProperty}'");
+                            ErrorMessage ?? $"Property '{propertyName}' depends on missing properties '{property1Name}' or '{property2Name}'");
                     }
 
-                    var dependentValue = dependentPropertyInfo.GetValue(value);
-                    if (!dependencyValidator(propertyValue, dependentValue))
+                    var property1Value = property1Info.GetValue(value);
+                    var property2Value = property2Info.GetValue(value);
+
+                    if (!rule(value, property1Value, property2Value))
                     {
                         return ValidationResult.Failure(
-                            ErrorMessage ?? $"Property '{propertyName}' failed dependency validation with '{dependsOnProperty}'");
+                            ErrorMessage ?? $"Property '{propertyName}' requires a valid phone number when the country is USA");
                     }
                 }
             }

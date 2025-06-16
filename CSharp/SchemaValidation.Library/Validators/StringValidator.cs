@@ -9,6 +9,7 @@ public sealed class StringValidator : Validator<string>
     private int? _minLength;
     private int? _maxLength;
     private string? _pattern;
+    private string? _patternErrorMessage;
 
     public StringValidator MinLength(int length)
     {
@@ -31,6 +32,14 @@ public sealed class StringValidator : Validator<string>
         return this;
     }
 
+    public new StringValidator WithMessage(string message)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(message);
+        _patternErrorMessage = message;
+        base.WithMessage(message);
+        return this;
+    }
+
     public override ValidationResult Validate(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -42,7 +51,7 @@ public sealed class StringValidator : Validator<string>
             return ValidationResult.Failure(ErrorMessage ?? $"Maximum length is {_maxLength.Value}");
 
         if (_pattern is not null && !Regex.IsMatch(value, _pattern))
-            return ValidationResult.Failure(ErrorMessage ?? "Pattern validation failed");
+            return ValidationResult.Failure(_patternErrorMessage ?? ErrorMessage ?? "Pattern validation failed");
 
         return ValidationResult.Success();
     }
