@@ -27,8 +27,27 @@ public static class Program
             { nameof(User.Email), Schema.String().Pattern(@"^[^\s@]+@[^\s@]+\.[^\s@]+$") },
             { nameof(User.Age), Schema.Number() },
             { nameof(User.IsActive), Schema.Boolean() },
-            { nameof(User.Tags), Schema.Array(Schema.String()) }
+            { nameof(User.Tags), Schema.Array(Schema.String()) },
+            { nameof(User.PhoneNumber), Schema.String().Pattern(@"^\+\d{1,3}-\d{3,14}$") },
+            { nameof(User.Address), Schema.ObjectAsValidator<Address>(new Dictionary<string, Validator<object>>
+            {
+                { nameof(Address.Street), Schema.String() },
+                { nameof(Address.City), Schema.String() },
+                { nameof(Address.PostalCode), Schema.String().Pattern(@"^\d{5}(-\d{4})?$") },
+                { nameof(Address.Country), Schema.String() }
+            }) }
         });
+
+        // Make phone number optional
+        userSchema.Optional(nameof(User.PhoneNumber));
+
+        // Add condition: postal code is required only for US addresses
+        userSchema
+            .When(nameof(User.Address), user => (user.Address?.Country ?? "").Equals("USA", StringComparison.OrdinalIgnoreCase))
+            .DependsOn(nameof(User.Address), nameof(User.PhoneNumber), (address, phone) => 
+                address is Address addr && 
+                addr.Country.Equals("USA", StringComparison.OrdinalIgnoreCase) && 
+                phone is not null);
 
         Console.WriteLine("Test Case 1: Valid User");
         var validUser = new User
@@ -45,7 +64,8 @@ public static class Program
                 City = "Anytown",
                 PostalCode = "12345",
                 Country = "USA"
-            }
+            },
+            PhoneNumber = "+1-1234567890"
         };
         ValidateAndPrint(userSchema, validUser);
 
@@ -58,7 +78,8 @@ public static class Program
             Age = 30,
             IsActive = true,
             Tags = new List<string> { "developer", "designer" },
-            Address = validUser.Address
+            Address = validUser.Address,
+            PhoneNumber = "+1-1234567890"
         };
         ValidateAndPrint(userSchema, invalidEmailUser);
 
@@ -71,7 +92,8 @@ public static class Program
             Age = 30,
             IsActive = true,
             Tags = new List<string> { "developer", "designer" },
-            Address = validUser.Address
+            Address = validUser.Address,
+            PhoneNumber = "+1-1234567890"
         };
         ValidateAndPrint(userSchema, invalidNameUser);
 
