@@ -9,7 +9,7 @@ public sealed record User
     public required string Email { get; init; }
     public required double Age { get; init; }
     public required bool IsActive { get; init; }
-    public required List<string> Tags { get; init; }
-    public required Address Address { get; init; }
+    public IReadOnlyCollection<string>? Tags { get; init; }
     public string? PhoneNumber { get; init; }
+    public Address? Address { get; init; }
 } 

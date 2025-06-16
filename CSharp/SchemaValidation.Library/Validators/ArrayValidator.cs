@@ -10,7 +10,7 @@ namespace SchemaValidation.Validators
         private readonly Validator<T> _itemValidator;
         private int? _minLength;
         private int? _maxLength;
-        private bool _allowDuplicates = true;
+        private bool _uniqueItems;
         private Func<T, T, bool>? _uniqueBy;
 
         public ArrayValidator(Validator<T> itemValidator)
@@ -32,17 +32,9 @@ namespace SchemaValidation.Validators
             return this;
         }
 
-        public ArrayValidator<T> Length(int exactLength)
-        {
-            ArgumentOutOfRangeException.ThrowIfNegative(exactLength);
-            _minLength = exactLength;
-            _maxLength = exactLength;
-            return this;
-        }
-
         public ArrayValidator<T> Unique()
         {
-            _allowDuplicates = false;
+            _uniqueItems = true;
             return this;
         }
 
@@ -71,7 +63,7 @@ namespace SchemaValidation.Validators
                 return ValidationResult.Failure<IEnumerable<T>>(errors);
             }
 
-            if (!_allowDuplicates)
+            if (_uniqueItems)
             {
                 var duplicates = items
                     .GroupBy(x => x)
@@ -86,11 +78,11 @@ namespace SchemaValidation.Validators
                 }
             }
 
-            if (_uniqueBy is not null)
+            if (_uniqueBy != null)
             {
-                for (int i = 0; i < items.Count; i++)
+                for (var i = 0; i < items.Count; i++)
                 {
-                    for (int j = i + 1; j < items.Count; j++)
+                    for (var j = i + 1; j < items.Count; j++)
                     {
                         if (_uniqueBy(items[i], items[j]))
                         {

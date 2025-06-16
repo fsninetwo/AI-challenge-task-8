@@ -8,6 +8,7 @@ namespace SchemaValidation.Validators
         private double? _min;
         private double? _max;
         private bool _isInteger;
+        private bool _allowNegative = true;
 
         public NumberValidator Min(double value)
         {
@@ -27,11 +28,22 @@ namespace SchemaValidation.Validators
             return this;
         }
 
+        public NumberValidator NonNegative()
+        {
+            _allowNegative = false;
+            return this;
+        }
+
         public override ValidationResult<double> Validate(double value)
         {
             if (_isInteger && Math.Abs(value % 1) > double.Epsilon)
             {
                 return CreateError("Value must be an integer");
+            }
+
+            if (!_allowNegative && value < 0)
+            {
+                return CreateError("Value cannot be negative");
             }
 
             if (_min.HasValue && value < _min.Value)

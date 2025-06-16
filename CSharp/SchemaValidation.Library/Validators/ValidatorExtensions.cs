@@ -100,6 +100,16 @@ public static class ValidatorExtensions
         throw new InvalidOperationException("Integer can only be used with number validators");
     }
 
+    public static Validator<object> NonNegative(this Validator<object> validator)
+    {
+        if (validator is ValidatorWrapper<double, object, NumberValidator> wrapper)
+        {
+            wrapper.UnderlyingValidator.NonNegative();
+            return validator;
+        }
+        throw new InvalidOperationException("NonNegative can only be used with number validators");
+    }
+
     public static Validator<object> WithMessage(this Validator<object> validator, string message)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);

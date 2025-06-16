@@ -27,6 +27,12 @@ public static class Schema
         return new ValidatorWrapper<IEnumerable<T>, object, ArrayValidator<T>>(new ArrayValidator<T>(itemValidator));
     }
 
+    public static Validator<object> ObjectArray<T>(Dictionary<string, Validator<object>> schema) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        return new ValidatorWrapper<IEnumerable<T>, object, ObjectArrayValidator<T>>(new ObjectArrayValidator<T>(schema));
+    }
+
     public static ObjectValidator<T> Object<T>(Dictionary<string, Validator<object>> schema) where T : class
     {
         ArgumentNullException.ThrowIfNull(schema);
@@ -40,7 +46,7 @@ public static class Schema
     }
 }
 
-internal sealed class ValidatorWrapper<TValue, TObject, TValidator> : Validator<TObject>
+public sealed class ValidatorWrapper<TValue, TObject, TValidator> : Validator<TObject>
     where TValidator : Validator<TValue>
 {
     private readonly TValidator _validator;

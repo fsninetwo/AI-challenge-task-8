@@ -11,6 +11,7 @@ public class SchemaValidationTests
 {
     private readonly Validator<User> _userSchema;
     private readonly Validator<Address> _addressSchema;
+    private readonly Validator<object> _userArraySchema;
 
     public SchemaValidationTests()
     {
@@ -40,6 +41,16 @@ public class SchemaValidationTests
                 { nameof(Address.PostalCode), Schema.String().Pattern(@"^\d{5}(-\d{4})?$") },
                 { nameof(Address.Country), Schema.String() }
             }) }
+        });
+
+        // Define user array schema
+        _userArraySchema = Schema.ObjectArray<User>(new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String().MinLength(2).MaxLength(50) },
+            { nameof(User.Email), Schema.String().Pattern(@"^[^\s@]+@[^\s@]+\.[^\s@]+$") },
+            { nameof(User.Age), Schema.Number().NonNegative() },
+            { nameof(User.IsActive), Schema.Boolean() }
         });
 
         // Make phone number optional
@@ -228,5 +239,107 @@ public class SchemaValidationTests
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Address));
         Assert.Contains("requires a valid phone number", result.Errors[0].Message.ToLower());
+    }
+
+    [Fact]
+    public void ValidUserArray_ShouldPass()
+    {
+        // Arrange
+        var users = new List<User>
+        {
+            new User
+            {
+                Id = "1",
+                Name = "John Doe",
+                Email = "john@example.com",
+                Age = 30,
+                IsActive = true
+            },
+            new User
+            {
+                Id = "2",
+                Name = "Jane Smith",
+                Email = "jane@example.com",
+                Age = 25,
+                IsActive = true
+            }
+        };
+
+        // Act
+        var result = _userArraySchema.Validate(users);
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void InvalidUserArray_ShouldFail()
+    {
+        // Arrange
+        var users = new List<User>
+        {
+            new User
+            {
+                Id = "1",
+                Name = "J", // Too short
+                Email = "invalid-email", // Invalid email
+                Age = 30,
+                IsActive = true
+            },
+            new User
+            {
+                Id = "2",
+                Name = "Jane Smith",
+                Email = "jane@example.com",
+                Age = -5, // Invalid age
+                IsActive = true
+            }
+        };
+
+        // Act
+        var result = _userArraySchema.Validate(users);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == "[0].Name");
+        Assert.Contains(result.Errors, e => e.PropertyName == "[0].Email");
+        Assert.Equal(3, result.Errors.Count); // Name, Email, and Age errors
+    }
+
+    [Fact]
+    public void DuplicateUserIds_ShouldFail()
+    {
+        // Arrange
+        var users = new List<User>
+        {
+            new User
+            {
+                Id = "1",
+                Name = "John Doe",
+                Email = "john@example.com",
+                Age = 30,
+                IsActive = true
+            },
+            new User
+            {
+                Id = "1", // Duplicate ID
+                Name = "Jane Smith",
+                Email = "jane@example.com",
+                Age = 25,
+                IsActive = true
+            }
+        };
+
+        // Act
+        var result = ((ValidatorWrapper<IEnumerable<User>, object, ObjectArrayValidator<User>>)_userArraySchema)
+            .UnderlyingValidator
+            .UniqueBy(nameof(User.Id), user => user.Id)
+            .Validate(users);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Id));
+        Assert.Contains("Duplicate value", result.Errors[0].Message);
     }
 } 
