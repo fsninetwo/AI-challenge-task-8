@@ -1,36 +1,42 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators
+namespace SchemaValidation.Validators;
+
+public sealed class ObjectValidator<T> : Validator<T>
 {
-    public class ObjectValidator<T> : Validator<T>
+    private readonly Dictionary<string, Validator<object>> _schema;
+
+    public ObjectValidator(Dictionary<string, Validator<object>> schema)
     {
-        private readonly Dictionary<string, Validator<object>> _schema;
+        _schema = schema ?? throw new ArgumentNullException(nameof(schema));
+    }
 
-        public ObjectValidator(Dictionary<string, Validator<object>> schema)
+    public override ValidationResult Validate(T value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var property in properties)
         {
-            _schema = schema ?? throw new ArgumentNullException(nameof(schema));
-        }
-
-        public override ValidationResult Validate(T value)
-        {
-            if (value == null)
-                return new ValidationResult(false, ErrorMessage ?? "Object cannot be null");
-
-            var properties = typeof(T).GetProperties();
-            foreach (var property in properties)
+            if (_schema.TryGetValue(property.Name, out var validator))
             {
-                if (_schema.TryGetValue(property.Name, out var validator))
+                var propertyValue = property.GetValue(value);
+                if (propertyValue is null)
                 {
-                    var propertyValue = property.GetValue(value);
-                    var result = validator.Validate(propertyValue);
-                    if (!result.IsValid)
-                        return new ValidationResult(false, $"Property '{property.Name}': {result.ErrorMessage}");
+                    return ValidationResult.Failure($"Property '{property.Name}' cannot be null");
+                }
+
+                var result = validator.Validate(propertyValue);
+                if (!result.IsValid)
+                {
+                    return ValidationResult.Failure($"Property '{property.Name}': {result.ErrorMessage}");
                 }
             }
-
-            return new ValidationResult(true);
         }
+
+        return ValidationResult.Success();
     }
 } 

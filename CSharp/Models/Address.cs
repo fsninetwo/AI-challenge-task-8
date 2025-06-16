@@ -1,10 +1,9 @@
-namespace SchemaValidation.Models
+namespace SchemaValidation.Models;
+
+public sealed record Address
 {
-    public class Address
-    {
-        public string Street { get; set; }
-        public string City { get; set; }
-        public string PostalCode { get; set; }
-        public string Country { get; set; }
-    }
+    public required string Street { get; init; }
+    public required string City { get; init; }
+    public required string PostalCode { get; init; }
+    public required string Country { get; init; }
 } 

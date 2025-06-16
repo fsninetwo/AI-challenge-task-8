@@ -1,20 +1,14 @@
-using System;
+namespace SchemaValidation.Core;
 
-namespace SchemaValidation.Core
+public abstract class Validator<T>
 {
-    public class Validator<T>
+    protected string? ErrorMessage { get; private set; }
+
+    public Validator<T> WithMessage(string message)
     {
-        protected string ErrorMessage { get; set; }
-
-        public Validator<T> WithMessage(string message)
-        {
-            ErrorMessage = message;
-            return this;
-        }
-
-        public virtual ValidationResult Validate(T value)
-        {
-            return new ValidationResult(true);
-        }
+        ErrorMessage = message;
+        return this;
     }
+
+    public abstract ValidationResult Validate(T value);
 } 

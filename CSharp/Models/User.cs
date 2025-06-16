@@ -1,15 +1,14 @@
 using System.Collections.Generic;
 
-namespace SchemaValidation.Models
+namespace SchemaValidation.Models;
+
+public sealed record User
 {
-    public class User
-    {
-        public string Id { get; set; }
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public double Age { get; set; }
-        public bool IsActive { get; set; }
-        public List<string> Tags { get; set; }
-        public Address Address { get; set; }
-    }
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public required string Email { get; init; }
+    public required double Age { get; init; }
+    public required bool IsActive { get; init; }
+    public required IReadOnlyList<string> Tags { get; init; }
+    public required Address Address { get; init; }
 } 
