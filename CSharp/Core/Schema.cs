@@ -31,11 +31,11 @@ public static class Schema
 
     private sealed class ArrayObjectWrapper : Validator<object>
     {
-        private readonly Validator<object> _itemValidator;
+        private readonly ArrayValidator<object> _validator;
 
-        public ArrayObjectWrapper(Validator<object> itemValidator)
+        public ArrayObjectWrapper(ArrayValidator<object> validator)
         {
-            _itemValidator = itemValidator ?? throw new ArgumentNullException(nameof(itemValidator));
+            _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         }
 
         public override ValidationResult Validate(object value)
@@ -44,15 +44,7 @@ public static class Schema
                 return ValidationResult.Failure("Array cannot be null");
 
             if (value is IEnumerable<object> enumerable)
-            {
-                foreach (var item in enumerable)
-                {
-                    var result = _itemValidator.Validate(item);
-                    if (!result.IsValid)
-                        return result;
-                }
-                return ValidationResult.Success();
-            }
+                return _validator.Validate(enumerable);
 
             return ValidationResult.Failure("Value is not an array");
         }
@@ -62,6 +54,25 @@ public static class Schema
     public static Validator<object> Number() => new ObjectWrapper<double>(new NumberValidator());
     public static Validator<object> Boolean() => new ObjectWrapper<bool>(new BooleanValidator());
     public static Validator<object> Date() => new ObjectWrapper<DateTime>(new DateValidator());
-    public static ObjectValidator<T> Object<T>(IDictionary<string, Validator<object>> schema) => new ObjectValidator<T>(new Dictionary<string, Validator<object>>(schema));
-    public static Validator<object> Array(Validator<object> itemValidator) => new ArrayObjectWrapper(itemValidator);
+    
+    public static ObjectValidator<T> Object<T>(IDictionary<string, Validator<object>> schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        return new ObjectValidator<T>(new Dictionary<string, Validator<object>>(schema));
+    }
+
+    public static Validator<object> ObjectAsValidator<T>(IDictionary<string, Validator<object>> schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        return new ObjectWrapper<T>(new ObjectValidator<T>(new Dictionary<string, Validator<object>>(schema)));
+    }
+
+    public static Validator<object> Array(Validator<object> itemValidator, Action<ArrayValidator<object>>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(itemValidator);
+        
+        var validator = new ArrayValidator<object>(itemValidator);
+        configure?.Invoke(validator);
+        return new ArrayObjectWrapper(validator);
+    }
 } 
