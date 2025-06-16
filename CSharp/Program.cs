@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using SchemaValidation.Core;
+using SchemaValidation.Models;
 
 namespace SchemaValidation
 {
@@ -53,24 +55,5 @@ namespace SchemaValidation
                 Console.WriteLine($"Error: {result.ErrorMessage}");
             }
         }
-    }
-
-    public class Address
-    {
-        public string Street { get; set; }
-        public string City { get; set; }
-        public string PostalCode { get; set; }
-        public string Country { get; set; }
-    }
-
-    public class User
-    {
-        public string Id { get; set; }
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public double Age { get; set; }
-        public bool IsActive { get; set; }
-        public List<string> Tags { get; set; }
-        public Address Address { get; set; }
     }
 } 

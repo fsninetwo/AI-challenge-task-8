@@ -1,0 +1,47 @@
+using System.Text.RegularExpressions;
+using SchemaValidation.Core;
+
+namespace SchemaValidation.Validators
+{
+    public class StringValidator : Validator<string>
+    {
+        private int? _minLength;
+        private int? _maxLength;
+        private string _pattern;
+
+        public StringValidator MinLength(int length)
+        {
+            _minLength = length;
+            return this;
+        }
+
+        public StringValidator MaxLength(int length)
+        {
+            _maxLength = length;
+            return this;
+        }
+
+        public StringValidator Pattern(string pattern)
+        {
+            _pattern = pattern;
+            return this;
+        }
+
+        public override ValidationResult Validate(string value)
+        {
+            if (value == null)
+                return new ValidationResult(false, ErrorMessage ?? "Value cannot be null");
+
+            if (_minLength.HasValue && value.Length < _minLength.Value)
+                return new ValidationResult(false, ErrorMessage ?? $"Minimum length is {_minLength.Value}");
+
+            if (_maxLength.HasValue && value.Length > _maxLength.Value)
+                return new ValidationResult(false, ErrorMessage ?? $"Maximum length is {_maxLength.Value}");
+
+            if (_pattern != null && !Regex.IsMatch(value, _pattern))
+                return new ValidationResult(false, ErrorMessage ?? "Pattern validation failed");
+
+            return new ValidationResult(true);
+        }
+    }
+} 
