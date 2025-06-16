@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SchemaValidation.Core;
 using SchemaValidation.Models;
+using SchemaValidation.Validators;
 
 namespace SchemaValidation
 {
@@ -29,8 +30,8 @@ namespace SchemaValidation
                 { "Tags", Schema.Array(Schema.String()) }
             });
 
-            // Example data
-            var userData = new User
+            Console.WriteLine("Test Case 1: Valid User");
+            var validUser = new User
             {
                 Id = "12345",
                 Name = "John Doe",
@@ -46,9 +47,46 @@ namespace SchemaValidation
                     Country = "USA"
                 }
             };
+            ValidateAndPrint(userSchema, validUser);
 
-            // Validate data
-            var result = userSchema.Validate(userData);
+            Console.WriteLine("\nTest Case 2: Invalid Email");
+            var invalidEmailUser = new User
+            {
+                Id = "12345",
+                Name = "John Doe",
+                Email = "invalid-email",
+                Age = 30,
+                IsActive = true,
+                Tags = new List<string> { "developer", "designer" }
+            };
+            ValidateAndPrint(userSchema, invalidEmailUser);
+
+            Console.WriteLine("\nTest Case 3: Invalid Name Length");
+            var invalidNameUser = new User
+            {
+                Id = "12345",
+                Name = "J",  // Too short
+                Email = "john@example.com",
+                Age = 30,
+                IsActive = true,
+                Tags = new List<string> { "developer", "designer" }
+            };
+            ValidateAndPrint(userSchema, invalidNameUser);
+
+            Console.WriteLine("\nTest Case 4: Invalid Postal Code");
+            var invalidAddress = new Address
+            {
+                Street = "123 Main St",
+                City = "Anytown",
+                PostalCode = "123",  // Not 5 digits
+                Country = "USA"
+            };
+            ValidateAndPrint(addressSchema, invalidAddress);
+        }
+
+        private static void ValidateAndPrint<T>(Validator<T> schema, T data)
+        {
+            var result = schema.Validate(data);
             Console.WriteLine($"Validation result: {(result.IsValid ? "Valid" : "Invalid")}");
             if (!result.IsValid)
             {
