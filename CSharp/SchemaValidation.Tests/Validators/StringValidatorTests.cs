@@ -2,7 +2,6 @@ using System;
 using SchemaValidation.Tests.Base;
 using SchemaValidation.Library.Validators;
 using SchemaValidation.Core;
-using SchemaValidation.Library.Models;
 using Xunit;
 
 namespace SchemaValidation.Tests.Validators;
@@ -15,13 +14,13 @@ public class StringValidatorTests : ValidationTestBase
     public StringValidatorTests()
     {
         _validator = Schema.String();
-        _underlyingValidator = ((ValidatorWrapper<string, object, StringValidator>)_validator).UnderlyingValidator;
+        _underlyingValidator = ((SchemaValidation.Core.ValidatorWrapper<string, object, StringValidator>)_validator).UnderlyingValidator;
     }
 
     [Theory]
-    [InlineData("test")]
     [InlineData("")]
     [InlineData(" ")]
+    [InlineData("test")]
     public void Validate_WhenValueIsString_ReturnsTrue(string value)
     {
         // Act
@@ -33,9 +32,9 @@ public class StringValidatorTests : ValidationTestBase
     }
 
     [Theory]
+    [InlineData(null)]
     [InlineData(123)]
     [InlineData(true)]
-    [InlineData(null)]
     public void Validate_WhenValueIsNotString_ReturnsFalse(object value)
     {
         // Act
@@ -64,8 +63,8 @@ public class StringValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData("", 1, 10)]
     [InlineData("toolongstring", 1, 5)]
+    [InlineData("", 1, 10)]
     public void Validate_WhenLengthIsOutOfRange_ReturnsFalse(string value, int minLength, int maxLength)
     {
         // Arrange
@@ -113,43 +112,13 @@ public class StringValidatorTests : ValidationTestBase
     }
 
     [Fact]
-    public void Pattern_WithValidInput_ShouldPass()
-    {
-        // Arrange
-        var validator = Schema.String().WithMessage("Pattern validation failed");
-        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.Pattern(@"^\d+$");
-
-        // Act
-        var result = validator.Validate("123");
-
-        // Assert
-        Assert.True(result.IsValid);
-    }
-
-    [Fact]
-    public void Pattern_WithInvalidInput_ShouldFail()
-    {
-        // Arrange
-        var validator = Schema.String().WithMessage("Pattern validation failed");
-        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.Pattern(@"^\d+$");
-
-        // Act
-        var result = validator.Validate("abc");
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains("Pattern validation", result.Errors[0].Message);
-    }
-
-    [Fact]
     public void MinLength_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = Schema.String().WithMessage("Minimum length validation failed");
-        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
+        _underlyingValidator.MinLength(3);
 
         // Act
-        var result = validator.Validate("abc");
+        var result = _validator.Validate("test");
 
         // Assert
         Assert.True(result.IsValid);
@@ -159,11 +128,10 @@ public class StringValidatorTests : ValidationTestBase
     public void MinLength_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = Schema.String().WithMessage("Minimum length validation failed");
-        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
+        _underlyingValidator.MinLength(3);
 
         // Act
-        var result = validator.Validate("ab");
+        var result = _validator.Validate("ab");
 
         // Assert
         Assert.False(result.IsValid);
@@ -174,11 +142,10 @@ public class StringValidatorTests : ValidationTestBase
     public void MaxLength_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = Schema.String().WithMessage("Maximum length validation failed");
-        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MaxLength(3);
+        _underlyingValidator.MaxLength(5);
 
         // Act
-        var result = validator.Validate("abc");
+        var result = _validator.Validate("test");
 
         // Assert
         Assert.True(result.IsValid);
@@ -188,11 +155,10 @@ public class StringValidatorTests : ValidationTestBase
     public void MaxLength_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = Schema.String().WithMessage("Maximum length validation failed");
-        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MaxLength(3);
+        _underlyingValidator.MaxLength(3);
 
         // Act
-        var result = validator.Validate("abcd");
+        var result = _validator.Validate("test");
 
         // Assert
         Assert.False(result.IsValid);
@@ -200,38 +166,57 @@ public class StringValidatorTests : ValidationTestBase
     }
 
     [Fact]
-    public void Email_WithInvalidFormat_ShouldFail()
+    public void Pattern_WithValidInput_ShouldPass()
     {
         // Arrange
-        var schema = new Dictionary<string, Validator<object>>
-        {
-            { nameof(User.Email), Schema.String().WithMessage("Invalid email format") }
-        };
-        var validator = Schema.Object<User>(schema);
+        _underlyingValidator.Pattern(@"^[a-z]+$");
 
         // Act
-        var result = validator.Validate(CreateInvalidUser());
+        var result = _validator.Validate("test");
+
+        // Assert
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Pattern_WithInvalidInput_ShouldFail()
+    {
+        // Arrange
+        _underlyingValidator.Pattern(@"^[a-z]+$");
+
+        // Act
+        var result = _validator.Validate("Test123");
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Email));
+        Assert.Contains("Pattern", result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void Email_WithInvalidFormat_ShouldFail()
+    {
+        // Arrange
+        _underlyingValidator.Email();
+
+        // Act
+        var result = _validator.Validate("invalid-email");
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains("Email", result.Errors[0].Message);
     }
 
     [Fact]
     public void PhoneNumber_WithInvalidFormat_ShouldFail()
     {
         // Arrange
-        var schema = new Dictionary<string, Validator<object>>
-        {
-            { nameof(User.PhoneNumber), Schema.String().WithMessage("Invalid phone number format") }
-        };
-        var validator = Schema.Object<User>(schema);
+        _underlyingValidator.PhoneNumber();
 
         // Act
-        var result = validator.Validate(CreateInvalidUser());
+        var result = _validator.Validate("123456789");
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.PhoneNumber));
+        Assert.Contains("Phone number", result.Errors[0].Message);
     }
 } 

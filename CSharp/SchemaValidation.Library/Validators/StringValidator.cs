@@ -32,6 +32,20 @@ public sealed class StringValidator : Validator<string>
         return this;
     }
 
+    public StringValidator Email()
+    {
+        _pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+        _patternErrorMessage = "Email format is invalid";
+        return this;
+    }
+
+    public StringValidator PhoneNumber()
+    {
+        _pattern = @"^\d{3}-\d{3}-\d{4}$";
+        _patternErrorMessage = "Phone number format is invalid (expected format: XXX-XXX-XXXX)";
+        return this;
+    }
+
     public new StringValidator WithMessage(string message)
     {
         base.WithMessage(message);

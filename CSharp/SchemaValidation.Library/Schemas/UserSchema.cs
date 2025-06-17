@@ -17,7 +17,7 @@ public static class UserSchema
             [nameof(User.Age)] = Schema.Number().WithMessage("Age must be between 0 and 120"),
             [nameof(User.IsActive)] = Schema.Boolean(),
             [nameof(User.PhoneNumber)] = Schema.String().WithMessage("Invalid phone number format"),
-            [nameof(User.Tags)] = Schema.Array(Schema.String().WithMessage("Tags must be unique and between 1 and 10 items"))
+            [nameof(User.Tags)] = Schema.Array<string>(Schema.String().WithMessage("Tags must be unique and between 1 and 10 items"))
         };
 
         return new ObjectValidator<User>(schema);

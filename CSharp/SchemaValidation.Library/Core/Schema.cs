@@ -26,7 +26,7 @@ public static class Schema
         return new ValidatorWrapper<DateTime, object, DateValidator>(new DateValidator());
     }
 
-    public static Validator<object> Array<T>(Validator<T> itemValidator)
+    public static Validator<object> Array<T>(Validator<object> itemValidator)
     {
         ArgumentNullException.ThrowIfNull(itemValidator);
         return new ValidatorWrapper<IEnumerable<T>, object, ArrayValidator<T>>(new ArrayValidator<T>(itemValidator));
@@ -48,31 +48,5 @@ public static class Schema
     {
         ArgumentNullException.ThrowIfNull(schema);
         return new ValidatorWrapper<T, object, ObjectValidator<T>>(new ObjectValidator<T>(schema));
-    }
-}
-
-public sealed class ValidatorWrapper<TValue, TObject, TValidator> : Validator<TObject>
-    where TValidator : Validator<TValue>
-{
-    private readonly TValidator _validator;
-
-    public ValidatorWrapper(TValidator validator)
-    {
-        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-    }
-
-    public TValidator UnderlyingValidator => _validator;
-
-    public override ValidationResult<TObject> Validate(TObject value)
-    {
-        if (value is not TValue typedValue)
-        {
-            return CreateError($"Expected value of type {typeof(TValue).Name}");
-        }
-
-        var result = _validator.Validate(typedValue);
-        return result.IsValid
-            ? ValidationResult.Success<TObject>()
-            : ValidationResult.Failure<TObject>(result.Errors);
     }
 } 

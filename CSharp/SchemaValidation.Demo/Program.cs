@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SchemaValidation.Core;
-using SchemaValidation.Models;
-using SchemaValidation.Validators;
+using SchemaValidation.Library.Models;
+using SchemaValidation.Library.Validators;
 using System.Collections.Generic;
 
 class Program
@@ -14,7 +14,7 @@ class Program
         var serviceProvider = services.BuildServiceProvider();
 
         // Get the validator from DI container
-        var validator = serviceProvider.GetRequiredService<Validator<User>>();
+        var validator = serviceProvider.GetRequiredService<ObjectValidator<User>>();
 
         // Demo 1: Valid User (USA)
         Console.WriteLine("Demo 1: Valid User (USA)");
@@ -86,9 +86,17 @@ class Program
     private static void ConfigureServices(IServiceCollection services)
     {
         // Register the User validator
-        services.AddSingleton<Validator<User>>(provider =>
+        services.AddSingleton<ObjectValidator<User>>(provider =>
         {
-            var userSchema = Schema.Object<User>(new Dictionary<string, Validator<object>>
+            var addressSchema = new Dictionary<string, Validator<object>>
+            {
+                { nameof(Address.Street), Schema.String().MinLength(5).WithMessage("Street must be at least 5 characters long") },
+                { nameof(Address.City), Schema.String().WithMessage("City is required") },
+                { nameof(Address.PostalCode), Schema.String().Pattern(@"^\d{5}$").WithMessage("Postal code must be exactly 5 digits") },
+                { nameof(Address.Country), Schema.String().WithMessage("Country is required") }
+            };
+
+            var schema = new Dictionary<string, Validator<object>>
             {
                 { nameof(User.Id), Schema.String().WithMessage("Id is required") },
                 { nameof(User.Name), Schema.String().MinLength(2).WithMessage("Name must be at least 2 characters long") },
@@ -97,33 +105,27 @@ class Program
                 { nameof(User.IsActive), Schema.Boolean() },
                 { nameof(User.Tags), Schema.Array(Schema.String()).MinLength(1).WithMessage("At least one tag is required") },
                 { nameof(User.PhoneNumber), Schema.String().Pattern(@"^\+\d{1,3}-\d{10}$").WithMessage("Phone number must be in format: +X-XXXXXXXXXX") },
-                { nameof(User.Address), Schema.ObjectAsValidator<Address>(new Dictionary<string, Validator<object>>
-                    {
-                        { nameof(Address.Street), Schema.String().MinLength(5).WithMessage("Street must be at least 5 characters long") },
-                        { nameof(Address.City), Schema.String().WithMessage("City is required") },
-                        { nameof(Address.PostalCode), Schema.String().Pattern(@"^\d{5}$").WithMessage("Postal code must be exactly 5 digits") },
-                        { nameof(Address.Country), Schema.String().WithMessage("Country is required") }
-                    })
-                }
-            });
+                { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
+            };
+
+            var validator = new ObjectValidator<User>(schema);
 
             // Make phone number optional by default
-            userSchema.Optional(nameof(User.PhoneNumber));
+            validator.MarkPropertyAsOptional(nameof(User.PhoneNumber));
 
             // Add conditional validation: Phone number must start with +1- for USA addresses
-            userSchema
-                .When(nameof(User.PhoneNumber), user => user.Address?.Country == "USA")
-                .DependsOn<string, string>(
-                    nameof(User.PhoneNumber),
-                    $"{nameof(User.Address)}.{nameof(Address.Country)}",
-                    (phone, country) => country != "USA" || (!string.IsNullOrEmpty(phone) && phone.StartsWith("+1-")))
-                .WithMessage("Phone number must start with '+1-' when the country is USA");
+            validator.AddDependencyRule(
+                nameof(User.PhoneNumber),
+                nameof(User.PhoneNumber),
+                $"{nameof(User.Address)}.{nameof(Address.Country)}",
+                (user, phone, country) => country?.ToString() != "USA" || (!string.IsNullOrEmpty(phone?.ToString()) && phone.ToString()!.StartsWith("+1-")),
+                "Phone number must start with +1- for USA addresses");
 
-            return userSchema;
+            return validator;
         });
     }
 
-    private static void PrintValidationResult(ValidationResult<User> result)
+    private static void PrintValidationResult<T>(ValidationResult<T> result)
     {
         if (result.IsValid)
         {

@@ -13,6 +13,7 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
     private bool _uniqueItems;
     private Func<T, object?>? _uniqueByProperty;
     private string? _uniquePropertyName;
+    private string? _errorMessage;
 
     public ObjectArrayValidator(Dictionary<string, Validator<object>> schema)
     {
@@ -49,28 +50,37 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return this;
     }
 
+    public new ObjectArrayValidator<T> WithMessage(string message)
+    {
+        base.WithMessage(message);
+        _errorMessage = message;
+        return this;
+    }
+
     public override ValidationResult<IEnumerable<T>> Validate(IEnumerable<T> value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value == null)
+        {
+            return CreateError("Value cannot be null");
+        }
 
         var items = value.ToList();
         var errors = new List<ValidationError>();
 
         if (_minLength.HasValue && items.Count < _minLength.Value)
         {
-            errors.Add(new ValidationError($"Array must have at least {_minLength.Value} items"));
-            return ValidationResult.Failure<IEnumerable<T>>(errors);
+            errors.Add(new ValidationError(_errorMessage ?? $"Array must have at least {_minLength.Value} items"));
         }
 
         if (_maxLength.HasValue && items.Count > _maxLength.Value)
         {
-            errors.Add(new ValidationError($"Array must have at most {_maxLength.Value} items"));
-            return ValidationResult.Failure<IEnumerable<T>>(errors);
+            errors.Add(new ValidationError(_errorMessage ?? $"Array must have at most {_maxLength.Value} items"));
         }
 
         if (_uniqueItems)
         {
             var duplicates = items
+                .Where(x => x != null)
                 .GroupBy(x => x)
                 .Where(g => g.Count() > 1)
                 .Select(g => g.Key)
@@ -78,14 +88,14 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
 
             if (duplicates.Any())
             {
-                errors.Add(new ValidationError("Array contains duplicate items"));
-                return ValidationResult.Failure<IEnumerable<T>>(errors);
+                errors.Add(new ValidationError(_errorMessage ?? "Array contains duplicate items"));
             }
         }
 
         if (_uniqueByProperty != null && _uniquePropertyName != null)
         {
             var duplicatesByProperty = items
+                .Where(x => x != null)
                 .Select((item, index) => new { Item = item, Index = index, Value = _uniqueByProperty(item) })
                 .GroupBy(x => x.Value)
                 .Where(g => g.Count() > 1)
@@ -98,16 +108,18 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
                     $"Duplicate value '{group.Key}' for property '{_uniquePropertyName}' at indices: {string.Join(", ", indices)}",
                     _uniquePropertyName));
             }
-
-            if (errors.Any())
-            {
-                return ValidationResult.Failure<IEnumerable<T>>(errors);
-            }
         }
 
         for (var i = 0; i < items.Count; i++)
         {
-            var itemResult = _itemValidator.Validate(items[i]);
+            var item = items[i];
+            if (item == null)
+            {
+                errors.Add(new ValidationError($"Item at index {i} cannot be null", $"[{i}]"));
+                continue;
+            }
+
+            var itemResult = _itemValidator.Validate(item);
             if (!itemResult.IsValid)
             {
                 errors.AddRange(itemResult.Errors.Select(e => new ValidationError(
@@ -119,5 +131,10 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return errors.Count > 0
             ? ValidationResult.Failure<IEnumerable<T>>(errors)
             : ValidationResult.Success<IEnumerable<T>>();
+    }
+
+    private ValidationResult<IEnumerable<T>> CreateError(string message)
+    {
+        return ValidationResult.Failure<IEnumerable<T>>(new List<ValidationError> { new ValidationError(message) });
     }
 } 

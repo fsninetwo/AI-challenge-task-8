@@ -83,4 +83,54 @@ public static class ValidatorExtensions
         validator.WithMessage(message);
         return validator;
     }
+
+    public static Validator<object> MinLength(this Validator<object> validator, int length)
+    {
+        if (validator is ValidatorWrapper<string, object, StringValidator> stringValidator)
+        {
+            stringValidator.UnderlyingValidator.MinLength(length);
+            return validator;
+        }
+        if (validator is ValidatorWrapper<IEnumerable<object>, object, ArrayValidator<object>> arrayValidator)
+        {
+            arrayValidator.UnderlyingValidator.MinLength(length);
+            return validator;
+        }
+        throw new InvalidOperationException("MinLength is only supported for string and array validators.");
+    }
+
+    public static Validator<object> MaxLength(this Validator<object> validator, int length)
+    {
+        if (validator is ValidatorWrapper<string, object, StringValidator> stringValidator)
+        {
+            stringValidator.UnderlyingValidator.MaxLength(length);
+            return validator;
+        }
+        if (validator is ValidatorWrapper<IEnumerable<object>, object, ArrayValidator<object>> arrayValidator)
+        {
+            arrayValidator.UnderlyingValidator.MaxLength(length);
+            return validator;
+        }
+        throw new InvalidOperationException("MaxLength is only supported for string and array validators.");
+    }
+
+    public static Validator<object> Pattern(this Validator<object> validator, string pattern)
+    {
+        if (validator is ValidatorWrapper<string, object, StringValidator> stringValidator)
+        {
+            stringValidator.UnderlyingValidator.Pattern(pattern);
+            return validator;
+        }
+        throw new InvalidOperationException("Pattern is only supported for string validators.");
+    }
+
+    public static Validator<object> NonNegative(this Validator<object> validator)
+    {
+        if (validator is ValidatorWrapper<double, object, NumberValidator> numberValidator)
+        {
+            numberValidator.UnderlyingValidator.NonNegative();
+            return validator;
+        }
+        throw new InvalidOperationException("NonNegative is only supported for number validators.");
+    }
 } 

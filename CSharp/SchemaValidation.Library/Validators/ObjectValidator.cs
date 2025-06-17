@@ -11,7 +11,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
     private readonly Dictionary<string, (Validator<object> Validator, bool IsRequired)> _schema;
     private readonly HashSet<string> _allowedProperties;
     private bool _allowAdditionalProperties = true;
-    private Dictionary<(string, string, string), Func<T, object?, object?, bool>>? _dependencyRules;
+    private Dictionary<(string, string, string), (Func<T, object?, object?, bool> Rule, string Message)>? _dependencyRules;
 
     public ObjectValidator(Dictionary<string, Validator<object>> schema)
     {
@@ -33,15 +33,15 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
         }
     }
 
-    public void AddDependencyRule(string propertyName, string property1Name, string property2Name, Func<T, object?, object?, bool> rule)
+    public void AddDependencyRule(string propertyName, string property1Name, string property2Name, Func<T, object?, object?, bool> rule, string? message = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(propertyName);
         ArgumentException.ThrowIfNullOrEmpty(property1Name);
         ArgumentException.ThrowIfNullOrEmpty(property2Name);
         ArgumentNullException.ThrowIfNull(rule);
 
-        _dependencyRules ??= new Dictionary<(string, string, string), Func<T, object?, object?, bool>>();
-        _dependencyRules[(propertyName, property1Name, property2Name)] = rule;
+        _dependencyRules ??= new Dictionary<(string, string, string), (Func<T, object?, object?, bool>, string)>();
+        _dependencyRules[(propertyName, property1Name, property2Name)] = (rule, message ?? $"Property '{propertyName}' has an invalid value based on '{property1Name}' and '{property2Name}'");
     }
 
     public ObjectValidator<T> StrictSchema()
@@ -52,7 +52,10 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
 
     public override ValidationResult<T> Validate(T value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value == null)
+        {
+            return CreateError("Value cannot be null");
+        }
 
         var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
         var propertyDict = properties.ToDictionary(p => p.Name, p => p);
@@ -66,7 +69,6 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
             {
                 errors.Add(new ValidationError(
                     $"Unknown properties found: {string.Join(", ", unknownProperties)}"));
-                return ValidationResult.Failure<T>(errors);
             }
         }
 
@@ -93,8 +95,10 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
                     .Where(x => x.Key.Item1 == propertyName)
                     .ToList();
 
-                foreach (var ((_, property1Name, property2Name), rule) in dependencies)
+                foreach (var dependency in dependencies)
                 {
+                    var ((_, property1Name, property2Name), (rule, message)) = dependency;
+
                     if (!propertyDict.TryGetValue(property1Name, out var property1Info) ||
                         !propertyDict.TryGetValue(property2Name, out var property2Info))
                     {
@@ -109,9 +113,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
 
                     if (!rule(value, property1Value, property2Value))
                     {
-                        errors.Add(new ValidationError(
-                            $"Property '{propertyName}' requires a valid phone number when the country is USA",
-                            propertyName));
+                        errors.Add(new ValidationError(message, propertyName));
                     }
                 }
             }

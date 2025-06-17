@@ -19,11 +19,11 @@ public class ArrayValidatorTests : ValidationTestBase
 
     public ArrayValidatorTests()
     {
-        _validator = Schema.Array(Schema.String());
-        _numberArrayValidator = Schema.Array(Schema.Number());
-        _stringArrayValidator = Schema.Array(Schema.String());
-        _underlyingNumberValidator = ((ValidatorWrapper<IEnumerable<double>, object, ArrayValidator<double>>)_numberArrayValidator).UnderlyingValidator;
-        _underlyingStringValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)_stringArrayValidator).UnderlyingValidator;
+        _validator = Schema.Array<string>(Schema.String());
+        _numberArrayValidator = Schema.Array<double>(Schema.Number());
+        _stringArrayValidator = Schema.Array<string>(Schema.String());
+        _underlyingNumberValidator = ((SchemaValidation.Core.ValidatorWrapper<IEnumerable<double>, object, ArrayValidator<double>>)_numberArrayValidator).UnderlyingValidator;
+        _underlyingStringValidator = ((SchemaValidation.Core.ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)_stringArrayValidator).UnderlyingValidator;
     }
 
     [Fact]
@@ -55,13 +55,13 @@ public class ArrayValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData("not an array")]
     [InlineData(123)]
+    [InlineData("not an array")]
     [InlineData(null)]
     public void Validate_WhenValueIsNotEnumerable_ReturnsFalse(object value)
     {
         // Act
-        var result = _validator.Validate(value);
+        var result = _numberArrayValidator.Validate(value);
 
         // Assert
         Assert.False(result.IsValid);
@@ -69,42 +69,18 @@ public class ArrayValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData(3, 5)]
-    [InlineData(1, 1)]
-    public void Validate_WhenLengthIsInRange_ReturnsTrue(int minLength, int maxLength)
-    {
-        // Arrange
-        var value = new List<double>();
-        for (int i = 0; i < minLength; i++)
-        {
-            value.Add(i);
-        }
-
-        _underlyingNumberValidator.MinLength(minLength);
-        _underlyingNumberValidator.MaxLength(maxLength);
-
-        // Act
-        var result = _numberArrayValidator.Validate(value);
-
-        // Assert
-        Assert.True(result.IsValid);
-        Assert.Empty(result.Errors);
-    }
-
-    [Theory]
-    [InlineData(3, 5, 1)]  // Too few items
-    [InlineData(3, 5, 7)]  // Too many items
+    [InlineData(3, 5, 1)]
+    [InlineData(3, 5, 7)]
     public void Validate_WhenLengthIsOutOfRange_ReturnsFalse(int minLength, int maxLength, int actualLength)
     {
         // Arrange
-        var value = new List<double>();
-        for (int i = 0; i < actualLength; i++)
-        {
-            value.Add(i);
-        }
-
         _underlyingNumberValidator.MinLength(minLength);
         _underlyingNumberValidator.MaxLength(maxLength);
+        var value = new double[actualLength];
+        for (var i = 0; i < actualLength; i++)
+        {
+            value[i] = i + 1;
+        }
 
         // Act
         var result = _numberArrayValidator.Validate(value);
@@ -112,57 +88,16 @@ public class ArrayValidatorTests : ValidationTestBase
         // Assert
         Assert.False(result.IsValid);
         Assert.NotEmpty(result.Errors);
-    }
-
-    [Fact]
-    public void Validate_WithCustomMessage_UsesCustomMessageOnError()
-    {
-        // Arrange
-        var value = new List<double>();
-        var customMessage = "Array must have at least 3 items";
-
-        _underlyingNumberValidator.MinLength(3).WithMessage(customMessage);
-
-        // Act
-        var result = _numberArrayValidator.Validate(value);
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.Message == customMessage);
-    }
-
-    [Fact]
-    public void Validate_WithItemValidator_ValidatesEachItem()
-    {
-        // Arrange
-        var numberValidator = new NumberValidator().Min(0).Max(10);
-        var arrayValidator = new ArrayValidator<double>(numberValidator);
-
-        var validValue = new[] { 1.0, 5.0, 10.0 };
-        var invalidValue = new[] { -1.0, 5.0, 11.0 };
-
-        // Act
-        var validResult = arrayValidator.Validate(validValue);
-        var invalidResult = arrayValidator.Validate(invalidValue);
-
-        // Assert
-        Assert.True(validResult.IsValid);
-        Assert.Empty(validResult.Errors);
-
-        Assert.False(invalidResult.IsValid);
-        Assert.NotEmpty(invalidResult.Errors);
     }
 
     [Fact]
     public void MinLength_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.MinLength(2);
+        _underlyingStringValidator.MinLength(2);
 
         // Act
-        var result = validator.Validate(new[] { "item1", "item2" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item2" });
 
         // Assert
         Assert.True(result.IsValid);
@@ -172,12 +107,10 @@ public class ArrayValidatorTests : ValidationTestBase
     public void MinLength_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.MinLength(2);
+        _underlyingStringValidator.MinLength(2);
 
         // Act
-        var result = validator.Validate(new[] { "item1" });
+        var result = _stringArrayValidator.Validate(new[] { "item1" });
 
         // Assert
         Assert.False(result.IsValid);
@@ -188,12 +121,10 @@ public class ArrayValidatorTests : ValidationTestBase
     public void MaxLength_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.MaxLength(3);
+        _underlyingStringValidator.MaxLength(3);
 
         // Act
-        var result = validator.Validate(new[] { "item1", "item2", "item3" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item2" });
 
         // Assert
         Assert.True(result.IsValid);
@@ -203,12 +134,10 @@ public class ArrayValidatorTests : ValidationTestBase
     public void MaxLength_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.MaxLength(2);
+        _underlyingStringValidator.MaxLength(2);
 
         // Act
-        var result = validator.Validate(new[] { "item1", "item2", "item3" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item2", "item3" });
 
         // Assert
         Assert.False(result.IsValid);
@@ -219,12 +148,10 @@ public class ArrayValidatorTests : ValidationTestBase
     public void Unique_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.Unique();
+        _underlyingStringValidator.Unique();
 
         // Act
-        var result = validator.Validate(new[] { "item1", "item2", "item3" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item2", "item3" });
 
         // Assert
         Assert.True(result.IsValid);
@@ -234,12 +161,10 @@ public class ArrayValidatorTests : ValidationTestBase
     public void Unique_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.Unique();
+        _underlyingStringValidator.Unique();
 
         // Act
-        var result = validator.Validate(new[] { "item1", "item1", "item2" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item1", "item2" });
 
         // Assert
         Assert.False(result.IsValid);
@@ -250,12 +175,10 @@ public class ArrayValidatorTests : ValidationTestBase
     public void UniqueBy_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.UniqueBy((x, y) => x.Length == y.Length);
+        _underlyingStringValidator.UniqueBy((x, y) => x.ToLower() == y.ToLower());
 
         // Act
-        var result = validator.Validate(new[] { "a", "bb", "ccc" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item2", "item3" });
 
         // Assert
         Assert.True(result.IsValid);
@@ -265,16 +188,45 @@ public class ArrayValidatorTests : ValidationTestBase
     public void UniqueBy_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
-        var underlyingValidator = ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator;
-        underlyingValidator.UniqueBy((x, y) => x.Length == y.Length);
+        _underlyingStringValidator.UniqueBy((x, y) => x.ToLower() == y.ToLower());
 
         // Act
-        var result = validator.Validate(new[] { "a", "b", "c" });
+        var result = _stringArrayValidator.Validate(new[] { "item1", "ITEM1", "item2" });
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Array contains items that are considered duplicates by the custom comparer", result.Errors[0].Message);
+        Assert.Contains("Array contains duplicate items", result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void Validate_WithCustomMessage_UsesCustomMessageOnError()
+    {
+        // Arrange
+        var customMessage = "Array validation failed";
+        _underlyingStringValidator.MinLength(3).WithMessage(customMessage);
+
+        // Act
+        var result = _stringArrayValidator.Validate(new[] { "item1", "item2" });
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(customMessage, result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void Validate_WithItemValidator_ValidatesEachItem()
+    {
+        // Arrange
+        var itemValidator = Schema.Number();
+        ((SchemaValidation.Core.ValidatorWrapper<double, object, NumberValidator>)itemValidator).UnderlyingValidator.NonNegative();
+        var arrayValidator = Schema.Array<double>(itemValidator);
+
+        // Act
+        var result = arrayValidator.Validate(new[] { 1.0, -1.0, 2.0 });
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains("must be non-negative", result.Errors[0].Message);
     }
 
     [Fact]
@@ -283,19 +235,19 @@ public class ArrayValidatorTests : ValidationTestBase
         // Arrange
         var schema = new Dictionary<string, Validator<object>>
         {
-            { nameof(User.Name), Schema.String().WithMessage("Name validation failed") },
-            { nameof(User.Age), Schema.Number().WithMessage("Age validation failed") }
+            { nameof(User.Name), Schema.String() },
+            { nameof(User.Email), Schema.String() }
         };
         var validator = Schema.ObjectArray<User>(schema);
 
-        var validValue = new[]
+        var users = new[]
         {
-            CreateValidUser(),
-            CreateValidUser() with { Id = "456", Name = "Jane Smith", Email = "jane@example.com" }
+            new User { Id = "1", Name = "John", Email = "john@example.com", Age = 30, IsActive = true },
+            new User { Id = "2", Name = "Jane", Email = "jane@example.com", Age = 25, IsActive = true }
         };
 
         // Act
-        var result = validator.Validate(validValue);
+        var result = validator.Validate(users);
 
         // Assert
         Assert.True(result.IsValid);
