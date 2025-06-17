@@ -122,13 +122,16 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
             var itemResult = _itemValidator.Validate(item);
             if (!itemResult.IsValid)
             {
-                errors.AddRange(itemResult.Errors.Select(e => new ValidationError(
-                    $"Item at index {i}: {e.Message}",
-                    $"[{i}].{e.PropertyName}")));
+                foreach (var error in itemResult.Errors)
+                {
+                    errors.Add(new ValidationError(
+                        error.Message,
+                        $"[{i}].{error.PropertyName}".TrimEnd('.')));
+                }
             }
         }
 
-        return errors.Count > 0
+        return errors.Any()
             ? ValidationResult.Failure<IEnumerable<T>>(errors)
             : ValidationResult.Success<IEnumerable<T>>();
     }

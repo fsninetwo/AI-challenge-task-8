@@ -14,24 +14,26 @@ namespace SchemaValidation.Library.Validators
         private double? _max;
         private bool _integer;
         private bool _nonNegative;
-        private string? _customErrorMessage;
+        private string? _errorMessage;
 
         /// <summary>
         /// Sets the minimum allowed value (inclusive).
         /// </summary>
         /// <param name="value">The minimum value that will be considered valid</param>
-        public void SetMin(double value)
+        public NumberValidator SetMin(double min)
         {
-            _min = value;
+            _min = min;
+            return this;
         }
 
         /// <summary>
         /// Sets the maximum allowed value (inclusive).
         /// </summary>
         /// <param name="value">The maximum value that will be considered valid</param>
-        public void SetMax(double value)
+        public NumberValidator SetMax(double max)
         {
-            _max = value;
+            _max = max;
+            return this;
         }
 
         /// <summary>
@@ -39,10 +41,11 @@ namespace SchemaValidation.Library.Validators
         /// </summary>
         /// <param name="min">The minimum value that will be considered valid</param>
         /// <param name="max">The maximum value that will be considered valid</param>
-        public void SetRange(double min, double max)
+        public NumberValidator SetRange(double min, double max)
         {
             _min = min;
             _max = max;
+            return this;
         }
 
         /// <summary>
@@ -57,10 +60,10 @@ namespace SchemaValidation.Library.Validators
         /// <summary>
         /// Requires the value to be non-negative (greater than or equal to zero).
         /// </summary>
-        public void SetNonNegative()
+        public NumberValidator SetNonNegative()
         {
-            _min = 0;
             _nonNegative = true;
+            return this;
         }
 
         /// <summary>
@@ -70,32 +73,36 @@ namespace SchemaValidation.Library.Validators
         /// <returns>A ValidationResult indicating success or failure with error messages</returns>
         public override ValidationResult<double> Validate(double value)
         {
+            var errors = new List<ValidationError>();
+
             if (_min.HasValue && value < _min.Value)
             {
-                return CreateError(_customErrorMessage ?? $"Value must be greater than or equal to {_min.Value}");
+                errors.Add(new ValidationError(_errorMessage ?? $"Value must be greater than or equal to {_min.Value}"));
             }
 
             if (_max.HasValue && value > _max.Value)
             {
-                return CreateError(_customErrorMessage ?? $"Value must be less than or equal to {_max.Value}");
+                errors.Add(new ValidationError(_errorMessage ?? $"Value must be less than or equal to {_max.Value}"));
             }
 
             if (_integer && Math.Abs(value % 1) > double.Epsilon)
             {
-                return CreateError(_customErrorMessage ?? "Value must be an integer");
+                errors.Add(new ValidationError(_errorMessage ?? "Value must be an integer"));
             }
 
             if (_nonNegative && value < 0)
             {
-                return CreateError(_customErrorMessage ?? "Value must be non-negative");
+                errors.Add(new ValidationError(_errorMessage ?? "Value must be greater than or equal to 0"));
             }
 
-            return ValidationResult.Success<double>();
+            return errors.Any()
+                ? ValidationResult.Failure<double>(errors)
+                : ValidationResult.Success<double>();
         }
 
         public override Validator<double> WithMessage(string message)
         {
-            _customErrorMessage = message;
+            _errorMessage = message;
             return this;
         }
     }

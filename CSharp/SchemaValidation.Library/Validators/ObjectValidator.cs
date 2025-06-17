@@ -87,38 +87,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
             }
 
             var propertyValue = propertyInfo.GetValue(value);
-
-            // Validate property dependencies
-            if (_dependencyRules is not null)
-            {
-                var dependencies = _dependencyRules
-                    .Where(x => x.Key.Item1 == propertyName)
-                    .ToList();
-
-                foreach (var dependency in dependencies)
-                {
-                    var ((_, property1Name, property2Name), (rule, message)) = dependency;
-
-                    if (!propertyDict.TryGetValue(property1Name, out var property1Info) ||
-                        !propertyDict.TryGetValue(property2Name, out var property2Info))
-                    {
-                        errors.Add(new ValidationError(
-                            $"Property '{propertyName}' depends on missing properties '{property1Name}' or '{property2Name}'",
-                            propertyName));
-                        continue;
-                    }
-
-                    var property1Value = property1Info.GetValue(value);
-                    var property2Value = property2Info.GetValue(value);
-
-                    if (!rule(value, property1Value, property2Value))
-                    {
-                        errors.Add(new ValidationError(message, propertyName));
-                    }
-                }
-            }
-
-            if (propertyValue is null)
+            if (propertyValue == null)
             {
                 if (isRequired)
                 {
@@ -132,13 +101,40 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
             var result = validator.Validate(propertyValue);
             if (!result.IsValid)
             {
-                errors.AddRange(result.Errors.Select(e => new ValidationError(
-                    $"Property '{propertyName}': {e.Message}",
-                    propertyName)));
+                foreach (var error in result.Errors)
+                {
+                    errors.Add(new ValidationError(
+                        error.Message,
+                        $"{propertyName}.{error.PropertyName}".TrimEnd('.')));
+                }
             }
         }
 
-        return errors.Count > 0
+        // Validate property dependencies
+        if (_dependencyRules != null)
+        {
+            foreach (var ((propertyName, property1Name, property2Name), (rule, message)) in _dependencyRules)
+            {
+                if (!propertyDict.TryGetValue(property1Name, out var property1Info) ||
+                    !propertyDict.TryGetValue(property2Name, out var property2Info))
+                {
+                    errors.Add(new ValidationError(
+                        $"Property '{propertyName}' depends on missing properties '{property1Name}' or '{property2Name}'",
+                        propertyName));
+                    continue;
+                }
+
+                var property1Value = property1Info.GetValue(value);
+                var property2Value = property2Info.GetValue(value);
+
+                if (!rule(value, property1Value, property2Value))
+                {
+                    errors.Add(new ValidationError(message, propertyName));
+                }
+            }
+        }
+
+        return errors.Any()
             ? ValidationResult.Failure<T>(errors)
             : ValidationResult.Success<T>();
     }

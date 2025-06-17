@@ -21,7 +21,7 @@ namespace SchemaValidation.Core
         {
             if (value == null)
             {
-                return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
             }
 
             TValue typedValue;
@@ -39,7 +39,7 @@ namespace SchemaValidation.Core
                     }
                     else
                     {
-                        return CreateError("Value must be a string");
+                        return CreateError(_customErrorMessage ?? "Value must be a string");
                     }
                 }
                 else if (typeof(TValue) == typeof(double))
@@ -52,12 +52,12 @@ namespace SchemaValidation.Core
                         }
                         catch
                         {
-                            return CreateError("Value must be a number");
+                            return CreateError(_customErrorMessage ?? "Value must be a number");
                         }
                     }
                     else
                     {
-                        return CreateError("Value must be a number");
+                        return CreateError(_customErrorMessage ?? "Value must be a number");
                     }
                 }
                 else if (typeof(TValue) == typeof(bool))
@@ -68,7 +68,7 @@ namespace SchemaValidation.Core
                     }
                     else
                     {
-                        return CreateError("Value must be a boolean");
+                        return CreateError(_customErrorMessage ?? "Value must be a boolean");
                     }
                 }
                 else if (value is IConvertible)
@@ -79,17 +79,17 @@ namespace SchemaValidation.Core
                     }
                     catch
                     {
-                        return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                        return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
                     }
                 }
                 else
                 {
-                    return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                    return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
                 }
             }
             catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is NullReferenceException || ex is OverflowException)
             {
-                return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
             }
 
             var result = _validator.Validate(typedValue);
@@ -114,7 +114,7 @@ namespace SchemaValidation.Core
 
         private ValidationResult<TObject> CreateError(string message)
         {
-            return ValidationResult.Failure<TObject>(_customErrorMessage ?? message);
+            return ValidationResult.Failure<TObject>(new[] { new ValidationError(message) });
         }
     }
 } 
