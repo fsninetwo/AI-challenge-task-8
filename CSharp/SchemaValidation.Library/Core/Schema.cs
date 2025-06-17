@@ -21,6 +21,11 @@ public static class Schema
         return new ValidatorWrapper<bool, object, BooleanValidator>(new BooleanValidator());
     }
 
+    public static Validator<object> Date()
+    {
+        return new ValidatorWrapper<DateTime, object, DateValidator>(new DateValidator());
+    }
+
     public static Validator<object> Array<T>(Validator<T> itemValidator)
     {
         ArgumentNullException.ThrowIfNull(itemValidator);

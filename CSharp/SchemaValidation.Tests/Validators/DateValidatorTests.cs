@@ -7,11 +7,13 @@ namespace SchemaValidation.Tests.Validators
 {
     public class DateValidatorTests
     {
-        private readonly DateValidator _validator;
+        private readonly Validator<object> _validator;
+        private readonly DateValidator _underlyingValidator;
 
         public DateValidatorTests()
         {
-            _validator = new DateValidator();
+            _validator = Schema.Date();
+            _underlyingValidator = ((ValidatorWrapper<DateTime, object, DateValidator>)_validator).UnderlyingValidator;
         }
 
         [Fact]
@@ -50,8 +52,8 @@ namespace SchemaValidation.Tests.Validators
             var maxDate = new DateTime(2023, 12, 31);
             var value = new DateTime(2023, 6, 15);
 
-            _validator.Min(minDate);
-            _validator.Max(maxDate);
+            _underlyingValidator.Min(minDate);
+            _underlyingValidator.Max(maxDate);
 
             // Act
             var result = _validator.Validate(value);
@@ -68,7 +70,7 @@ namespace SchemaValidation.Tests.Validators
             var minDate = new DateTime(2023, 1, 1);
             var value = new DateTime(2022, 12, 31);
 
-            _validator.Min(minDate);
+            _underlyingValidator.Min(minDate);
 
             // Act
             var result = _validator.Validate(value);
@@ -85,7 +87,7 @@ namespace SchemaValidation.Tests.Validators
             var maxDate = new DateTime(2023, 12, 31);
             var value = new DateTime(2024, 1, 1);
 
-            _validator.Max(maxDate);
+            _underlyingValidator.Max(maxDate);
 
             // Act
             var result = _validator.Validate(value);
@@ -103,7 +105,7 @@ namespace SchemaValidation.Tests.Validators
             var value = new DateTime(2022, 12, 31);
             var customMessage = "Date must be after January 1st, 2023";
 
-            _validator.Min(minDate).WithMessage(customMessage);
+            _underlyingValidator.Min(minDate).WithMessage(customMessage);
 
             // Act
             var result = _validator.Validate(value);

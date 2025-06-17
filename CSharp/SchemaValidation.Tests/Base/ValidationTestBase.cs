@@ -1,21 +1,21 @@
-using SchemaValidation.Models;
 using System.Collections.Generic;
+using SchemaValidation.Library.Models;
 
 namespace SchemaValidation.Tests.Base
 {
     public abstract class ValidationTestBase
     {
-        protected User CreateValidUser()
+        protected static User CreateValidUser()
         {
             return new User
             {
-                Id = "123",
+                Id = "1",
                 Name = "John Doe",
-                Email = "john@example.com",
-                Age = 30.0,
+                Email = "john.doe@example.com",
+                Age = 30,
                 IsActive = true,
+                PhoneNumber = "+1234567890",
                 Tags = new List<string> { "tag1", "tag2" },
-                PhoneNumber = "123-456-7890",
                 Address = new Address
                 {
                     Street = "123 Main St",
@@ -44,7 +44,7 @@ namespace SchemaValidation.Tests.Base
                 Id = "123",
                 Name = "A", // Invalid - too short
                 Email = "invalid-email", // Invalid format
-                Age = 150.0, // Invalid - too high
+                Age = 150, // Invalid - too high
                 IsActive = true,
                 Tags = new List<string> { "tag1", "tag2" },
                 PhoneNumber = "123-456-7890",

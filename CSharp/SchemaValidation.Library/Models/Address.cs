@@ -1,4 +1,4 @@
-namespace SchemaValidation.Models;
+namespace SchemaValidation.Library.Models;
 
 public sealed record Address
 {

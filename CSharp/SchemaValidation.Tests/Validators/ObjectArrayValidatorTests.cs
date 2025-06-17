@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using Xunit;
-using SchemaValidation.Library.Validators;
 using SchemaValidation.Tests.Base;
+using SchemaValidation.Library.Validators;
 using SchemaValidation.Core;
-using SchemaValidation.Models;
+using SchemaValidation.Library.Models;
+using Xunit;
 
 namespace SchemaValidation.Tests.Validators
 {
@@ -17,10 +17,10 @@ namespace SchemaValidation.Tests.Validators
         {
             _propertyValidators = new Dictionary<string, Validator<object>>
             {
-                { nameof(User.Name), new StringValidator().MinLength(3) },
-                { nameof(User.Age), new NumberValidator().Min(0).Max(120) },
-                { nameof(User.Email), new StringValidator().Pattern(@"^[^@\s]+@[^@\s]+\.[^@\s]+$") },
-                { nameof(User.Id), new StringValidator().MinLength(1) }
+                { nameof(User.Name), Schema.String().WithMessage("Name must be at least 3 characters") },
+                { nameof(User.Age), Schema.Number().WithMessage("Age must be between 0 and 120") },
+                { nameof(User.Email), Schema.String().WithMessage("Invalid email format") },
+                { nameof(User.Id), Schema.String().WithMessage("Id is required") }
             };
             _validator = new ObjectArrayValidator<User>(_propertyValidators);
         }
@@ -174,7 +174,7 @@ namespace SchemaValidation.Tests.Validators
         public void Validate_WithNullArray_ReturnsFalse()
         {
             // Act
-            var result = _validator.Validate(null);
+            var result = _validator.Validate(null!);
 
             // Assert
             Assert.False(result.IsValid);
@@ -185,14 +185,14 @@ namespace SchemaValidation.Tests.Validators
         public void Validate_WithNullObjectInArray_ValidatesGracefully()
         {
             // Arrange
-            var objects = new User[]
+            var objects = new User?[]
             {
                 CreateValidUser(),
                 null
             };
 
             // Act
-            var result = _validator.Validate(objects);
+            var result = _validator.Validate(objects!);
 
             // Assert
             Assert.False(result.IsValid);
@@ -207,11 +207,13 @@ namespace SchemaValidation.Tests.Validators
                 .MinLength(2)
                 .MaxLength(3)
                 .Unique()
-                .WithMessage("Custom validation error");
+                .UniqueBy(nameof(User.Email), obj => obj.Email);
 
+            var user = CreateValidUser();
             var objects = new[]
             {
-                CreateValidUser()
+                user,
+                user  // Same reference = duplicate
             };
 
             // Act
@@ -219,7 +221,7 @@ namespace SchemaValidation.Tests.Validators
 
             // Assert
             Assert.False(result.IsValid);
-            Assert.NotEmpty(result.Errors);
+            Assert.Contains(result.Errors, error => error.Message.Contains("unique"));
         }
     }
 } 

@@ -38,6 +38,19 @@ namespace SchemaValidation.Library.Validators
         }
 
         /// <summary>
+        /// Sets the minimum and maximum allowed values (inclusive).
+        /// </summary>
+        /// <param name="min">The minimum value that will be considered valid</param>
+        /// <param name="max">The maximum value that will be considered valid</param>
+        /// <returns>The validator instance for method chaining</returns>
+        public NumberValidator SetRange(double min, double max)
+        {
+            _min = min;
+            _max = max;
+            return this;
+        }
+
+        /// <summary>
         /// Requires the value to be an integer (no decimal places).
         /// Uses epsilon comparison to handle floating-point precision issues.
         /// </summary>
@@ -54,6 +67,7 @@ namespace SchemaValidation.Library.Validators
         /// <returns>The validator instance for method chaining</returns>
         public NumberValidator NonNegative()
         {
+            _min = 0;
             _nonNegative = true;
             return this;
         }
@@ -67,12 +81,12 @@ namespace SchemaValidation.Library.Validators
         {
             if (_min.HasValue && value < _min.Value)
             {
-                return CreateError($"must be greater than or equal to {_min.Value}");
+                return CreateError($"Value must be greater than or equal to {_min.Value}");
             }
 
             if (_max.HasValue && value > _max.Value)
             {
-                return CreateError($"must be less than or equal to {_max.Value}");
+                return CreateError($"Value must be less than or equal to {_max.Value}");
             }
 
             if (_integer && Math.Abs(value % 1) > double.Epsilon)

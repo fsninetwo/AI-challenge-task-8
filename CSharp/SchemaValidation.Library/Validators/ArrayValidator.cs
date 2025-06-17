@@ -7,15 +7,70 @@ namespace SchemaValidation.Library.Validators
 {
     public sealed class ArrayValidator : Validator<object>
     {
+        private int? _minLength;
+        private int? _maxLength;
+        private Validator<object>? _itemValidator;
+
+        public ArrayValidator MinLength(int length)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(length);
+            _minLength = length;
+            return this;
+        }
+
+        public ArrayValidator MaxLength(int length)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(length);
+            _maxLength = length;
+            return this;
+        }
+
+        public ArrayValidator Items(Validator<object> itemValidator)
+        {
+            _itemValidator = itemValidator ?? throw new ArgumentNullException(nameof(itemValidator));
+            return this;
+        }
+
         public override ValidationResult<object> Validate(object value)
         {
             if (value == null)
                 return CreateError("Value cannot be null");
 
-            if (!(value is System.Collections.IEnumerable))
+            if (!(value is System.Collections.IEnumerable enumerable))
                 return CreateError("Value must be an array or collection");
 
-            return ValidationResult.Success<object>();
+            var items = enumerable.Cast<object>().ToList();
+            var errors = new List<ValidationError>();
+
+            if (_minLength.HasValue && items.Count < _minLength.Value)
+            {
+                errors.Add(new ValidationError(ErrorMessage ?? $"Array must have at least {_minLength.Value} items"));
+                return ValidationResult.Failure<object>(errors);
+            }
+
+            if (_maxLength.HasValue && items.Count > _maxLength.Value)
+            {
+                errors.Add(new ValidationError(ErrorMessage ?? $"Array must have at most {_maxLength.Value} items"));
+                return ValidationResult.Failure<object>(errors);
+            }
+
+            if (_itemValidator != null)
+            {
+                for (var i = 0; i < items.Count; i++)
+                {
+                    var itemResult = _itemValidator.Validate(items[i]);
+                    if (!itemResult.IsValid)
+                    {
+                        errors.AddRange(itemResult.Errors.Select(e => new ValidationError(
+                            $"Item at index {i}: {e.Message}",
+                            $"[{i}]")));
+                    }
+                }
+            }
+
+            return errors.Count > 0
+                ? ValidationResult.Failure<object>(errors)
+                : ValidationResult.Success<object>();
         }
     }
 
@@ -67,13 +122,13 @@ namespace SchemaValidation.Library.Validators
 
             if (_minLength.HasValue && items.Count < _minLength.Value)
             {
-                errors.Add(new ValidationError($"Array must have at least {_minLength.Value} items"));
+                errors.Add(new ValidationError(ErrorMessage ?? $"Array must have at least {_minLength.Value} items"));
                 return ValidationResult.Failure<IEnumerable<T>>(errors);
             }
 
             if (_maxLength.HasValue && items.Count > _maxLength.Value)
             {
-                errors.Add(new ValidationError($"Array must have at most {_maxLength.Value} items"));
+                errors.Add(new ValidationError(ErrorMessage ?? $"Array must have at most {_maxLength.Value} items"));
                 return ValidationResult.Failure<IEnumerable<T>>(errors);
             }
 
@@ -87,7 +142,7 @@ namespace SchemaValidation.Library.Validators
 
                 if (duplicates.Any())
                 {
-                    errors.Add(new ValidationError("Array contains duplicate items"));
+                    errors.Add(new ValidationError(ErrorMessage ?? "Array contains duplicate items"));
                     return ValidationResult.Failure<IEnumerable<T>>(errors);
                 }
             }
@@ -100,7 +155,7 @@ namespace SchemaValidation.Library.Validators
                     {
                         if (_uniqueBy(items[i], items[j]))
                         {
-                            errors.Add(new ValidationError("Array contains items that are considered duplicates by the custom comparer"));
+                            errors.Add(new ValidationError(ErrorMessage ?? "Array contains items that are considered duplicates by the custom comparer"));
                             return ValidationResult.Failure<IEnumerable<T>>(errors);
                         }
                     }

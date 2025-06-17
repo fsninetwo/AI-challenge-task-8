@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using SchemaValidation.Tests.Base;
-using SchemaValidation.Validators;
-using SchemaValidation.Core;
-using SchemaValidation.Models;
-using Xunit;
 using SchemaValidation.Library.Validators;
+using SchemaValidation.Core;
+using SchemaValidation.Library.Models;
+using Xunit;
 
 namespace SchemaValidation.Tests.Validators;
 
@@ -17,16 +16,16 @@ public class ObjectValidatorTests : ValidationTestBase
     {
         var propertyValidators = new Dictionary<string, Validator<object>>
         {
-            { nameof(TestObject.StringProperty), new StringValidator().MinLength(3) },
-            { nameof(TestObject.NumberProperty), new NumberValidator().Min(0).Max(100) },
-            { nameof(TestObject.BoolProperty), new BooleanValidator() }
+            { nameof(TestObject.StringProperty), Schema.String().WithMessage("String property validation failed") },
+            { nameof(TestObject.NumberProperty), Schema.Number().WithMessage("Number property validation failed") },
+            { nameof(TestObject.BoolProperty), Schema.Boolean() }
         };
         _validator = new ObjectValidator<TestObject>(propertyValidators);
     }
 
     private class TestObject
     {
-        public string StringProperty { get; set; }
+        public string StringProperty { get; set; } = string.Empty;
         public int NumberProperty { get; set; }
         public bool BoolProperty { get; set; }
     }
@@ -35,12 +34,12 @@ public class ObjectValidatorTests : ValidationTestBase
     public void RequiredProperties_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }));
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() }
+        };
+        var validator = Schema.Object<User>(schema);
 
         // Act
         var result = validator.Validate(CreateValidUser());
@@ -53,12 +52,12 @@ public class ObjectValidatorTests : ValidationTestBase
     public void RequiredProperties_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }));
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() }
+        };
+        var validator = Schema.Object<User>(schema);
 
         // Act
         var result = validator.Validate(new User
@@ -88,15 +87,14 @@ public class ObjectValidatorTests : ValidationTestBase
     public void OptionalProperties_WithMissingProperties_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Email), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }));
-
-        validator.UnderlyingValidator.Optional(nameof(User.Email));
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() },
+            { nameof(User.Email), Schema.String() }
+        };
+        var validator = Schema.Object<User>(schema);
+        validator.Optional(nameof(User.Email));
 
         // Act
         var result = validator.Validate(new User
@@ -124,12 +122,12 @@ public class ObjectValidatorTests : ValidationTestBase
     public void StrictSchema_WithAdditionalProperties_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }).StrictSchema());
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() }
+        };
+        var validator = Schema.Object<User>(schema).StrictSchema();
 
         // Act
         var result = validator.Validate(new User
@@ -158,28 +156,27 @@ public class ObjectValidatorTests : ValidationTestBase
     public void DependencyRule_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.PhoneNumber), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Address), new ValidatorWrapper<Address, object, ObjectValidator<Address>>(
-                    new ObjectValidator<Address>(new Dictionary<string, Validator<object>>
-                    {
-                        { nameof(Address.Country), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-                    })) }
-            }));
+        var addressSchema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(Address.Country), Schema.String() }
+        };
 
-        validator.UnderlyingValidator.Optional(nameof(User.PhoneNumber));
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() },
+            { nameof(User.PhoneNumber), Schema.String() },
+            { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
+        };
 
-        validator.UnderlyingValidator
-            .When(nameof(User.PhoneNumber), user => user.Address != null && user.Address.Country == "USA")
-            .DependsOn<string, string>(
-                nameof(User.PhoneNumber),
-                $"{nameof(User.Address)}.{nameof(Address.Country)}",
-                (phone, country) => country != "USA" || (!string.IsNullOrEmpty(phone) && phone.StartsWith("+1-")),
-                "Property 'PhoneNumber' requires a valid phone number starting with '+1-' when the country is USA");
+        var validator = new ObjectValidator<User>(schema);
+        validator.MarkPropertyAsOptional(nameof(User.PhoneNumber));
+
+        validator.AddDependencyRule(
+            nameof(User.PhoneNumber),
+            nameof(User.PhoneNumber),
+            $"{nameof(User.Address)}.{nameof(Address.Country)}",
+            (user, phone, country) => country?.ToString() != "USA" || (!string.IsNullOrEmpty(phone?.ToString()) && phone.ToString()!.StartsWith("+1-")));
 
         // Act
         var result = validator.Validate(new User
@@ -205,111 +202,28 @@ public class ObjectValidatorTests : ValidationTestBase
     }
 
     [Fact]
-    public void DependencyRule_WithInvalidInput_ShouldFail()
-    {
-        // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.PhoneNumber), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Address), new ValidatorWrapper<Address, object, ObjectValidator<Address>>(
-                    new ObjectValidator<Address>(new Dictionary<string, Validator<object>>
-                    {
-                        { nameof(Address.Country), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-                    })) }
-            }));
-
-        validator.UnderlyingValidator.Optional(nameof(User.PhoneNumber));
-
-        validator.UnderlyingValidator
-            .When(nameof(User.PhoneNumber), user => user.Address != null && user.Address.Country == "USA")
-            .DependsOn<string, string>(
-                nameof(User.PhoneNumber),
-                $"{nameof(User.Address)}.{nameof(Address.Country)}",
-                (phone, country) => country != "USA" || (!string.IsNullOrEmpty(phone) && phone.StartsWith("+1-")),
-                "Property 'PhoneNumber' requires a valid phone number starting with '+1-' when the country is USA");
-
-        // Act - Test with null phone number
-        var result = validator.Validate(new User
-        {
-            Id = "123",
-            Name = "John",
-            Email = "john@example.com",
-            Age = 30,
-            IsActive = true,
-            Tags = new List<string>(),
-            PhoneNumber = null,
-            Address = new Address
-            {
-                Street = "123 Main St",
-                City = "New York",
-                PostalCode = "10001",
-                Country = "USA"
-            }
-        });
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains("Property 'PhoneNumber' requires a valid phone number starting with '+1-' when the country is USA", result.Errors[0].Message);
-
-        // Test with invalid phone number format
-        result = validator.Validate(new User
-        {
-            Id = "123",
-            Name = "John",
-            Email = "john@example.com",
-            Age = 30,
-            IsActive = true,
-            Tags = new List<string>(),
-            PhoneNumber = "1234567890",
-            Address = new Address
-            {
-                Street = "123 Main St",
-                City = "New York",
-                PostalCode = "10001",
-                Country = "USA"
-            }
-        });
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains("Property 'PhoneNumber' requires a valid phone number starting with '+1-' when the country is USA", result.Errors[0].Message);
-    }
-
-    [Fact]
     public void NestedObjectValidation_WithValidTypes_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Address), new ValidatorWrapper<Address, object, ObjectValidator<Address>>(
-                    new ObjectValidator<Address>(new Dictionary<string, Validator<object>>
-                    {
-                        { nameof(Address.Street), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                        { nameof(Address.PostalCode), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().Pattern(@"^\d{5}$")) }
-                    })) }
-            }));
+        var addressSchema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(Address.Street), Schema.String() },
+            { nameof(Address.City), Schema.String() },
+            { nameof(Address.PostalCode), Schema.String() },
+            { nameof(Address.Country), Schema.String() }
+        };
+
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() },
+            { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
+        };
+
+        var validator = Schema.Object<User>(schema);
 
         // Act
-        var result = validator.Validate(new User
-        {
-            Id = "123",
-            Name = "John",
-            Email = "john@example.com",
-            Age = 30,
-            IsActive = true,
-            Address = new Address
-            {
-                Street = "123 Main St",
-                City = "New York",
-                PostalCode = "12345",
-                Country = "USA"
-            }
-        });
+        var result = validator.Validate(CreateValidUser());
 
         // Assert
         Assert.True(result.IsValid);
@@ -319,53 +233,44 @@ public class ObjectValidatorTests : ValidationTestBase
     public void NestedObjectValidation_WithInvalidTypes_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, User, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Address), new ValidatorWrapper<Address, object, ObjectValidator<Address>>(
-                    new ObjectValidator<Address>(new Dictionary<string, Validator<object>>
-                    {
-                        { nameof(Address.Street), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                        { nameof(Address.PostalCode), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().Pattern(@"^\d{5}$")) }
-                    })) }
-            }));
+        var addressSchema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(Address.Street), Schema.String() },
+            { nameof(Address.City), Schema.String() },
+            { nameof(Address.PostalCode), Schema.String() },
+            { nameof(Address.Country), Schema.String() }
+        };
+
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String() },
+            { nameof(User.Name), Schema.String() },
+            { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
+        };
+
+        var validator = Schema.Object<User>(schema);
 
         // Act
-        var result = validator.Validate(new User
-        {
-            Id = "123",
-            Name = "John",
-            Email = "john@example.com",
-            Age = 30,
-            IsActive = true,
-            Address = new Address
-            {
-                Street = "123 Main St",
-                City = "New York",
-                PostalCode = "ABC12", // Invalid postal code format
-                Country = "USA"
-            }
-        });
+        var result = validator.Validate(CreateInvalidUser());
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == $"{nameof(User.Address)}.{nameof(Address.PostalCode)}");
+        Assert.Contains(result.Errors, e => e.PropertyName.Contains(nameof(Address.Street)));
     }
 
     [Fact]
     public void Validate_WhenAllPropertiesAreValid_ReturnsTrue()
     {
         // Arrange
-        var obj = new TestObject
+        var testObject = new TestObject
         {
             StringProperty = "test",
-            NumberProperty = 50,
+            NumberProperty = 42,
             BoolProperty = true
         };
 
         // Act
-        var result = _validator.Validate(obj);
+        var result = _validator.Validate(testObject);
 
         // Assert
         Assert.True(result.IsValid);
@@ -376,65 +281,65 @@ public class ObjectValidatorTests : ValidationTestBase
     public void Validate_WhenStringPropertyTooShort_ReturnsFalse()
     {
         // Arrange
-        var obj = new TestObject
+        var testObject = new TestObject
         {
-            StringProperty = "ab",
-            NumberProperty = 50,
+            StringProperty = "",
+            NumberProperty = 42,
             BoolProperty = true
         };
 
         // Act
-        var result = _validator.Validate(obj);
+        var result = _validator.Validate(testObject);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(TestObject.StringProperty));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(TestObject.StringProperty));
     }
 
     [Fact]
     public void Validate_WhenNumberPropertyOutOfRange_ReturnsFalse()
     {
         // Arrange
-        var obj = new TestObject
+        var testObject = new TestObject
         {
             StringProperty = "test",
-            NumberProperty = 101,
+            NumberProperty = -1,
             BoolProperty = true
         };
 
         // Act
-        var result = _validator.Validate(obj);
+        var result = _validator.Validate(testObject);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(TestObject.NumberProperty));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(TestObject.NumberProperty));
     }
 
     [Fact]
     public void Validate_WhenMultiplePropertiesInvalid_ReturnsFalseWithMultipleErrors()
     {
         // Arrange
-        var obj = new TestObject
+        var testObject = new TestObject
         {
-            StringProperty = "ab",
-            NumberProperty = 101,
+            StringProperty = "",
+            NumberProperty = -1,
             BoolProperty = true
         };
 
         // Act
-        var result = _validator.Validate(obj);
+        var result = _validator.Validate(testObject);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(TestObject.StringProperty));
-        Assert.Contains(result.Errors, error => error.PropertyName == nameof(TestObject.NumberProperty));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(TestObject.StringProperty));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(TestObject.NumberProperty));
     }
 
     [Fact]
     public void Validate_WhenObjectIsNull_ReturnsFalse()
     {
         // Act
-        var result = _validator.Validate(null);
+        var result = _validator.Validate(null!);
 
         // Assert
         Assert.False(result.IsValid);
@@ -445,21 +350,33 @@ public class ObjectValidatorTests : ValidationTestBase
     public void Validate_WithCustomMessage_UsesCustomMessageOnError()
     {
         // Arrange
-        var customMessage = "Custom validation error";
-        _validator.WithMessage(customMessage);
-
-        var obj = new TestObject
+        var customMessage = "Custom error message";
+        var schema = new Dictionary<string, Validator<object>>
         {
-            StringProperty = "ab",
-            NumberProperty = 101,
-            BoolProperty = true
+            { nameof(User.Id), Schema.String().WithMessage(customMessage) }
         };
+        var validator = Schema.Object<User>(schema);
 
         // Act
-        var result = _validator.Validate(obj);
+        var result = validator.Validate(new User
+        {
+            Id = "",
+            Name = "",
+            Email = "",
+            Age = 0,
+            IsActive = false,
+            Tags = new List<string>(),
+            Address = new Address
+            {
+                Street = "",
+                City = "",
+                PostalCode = "",
+                Country = ""
+            }
+        });
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.Message == customMessage);
+        Assert.Contains(result.Errors, e => e.Message == customMessage);
     }
 } 

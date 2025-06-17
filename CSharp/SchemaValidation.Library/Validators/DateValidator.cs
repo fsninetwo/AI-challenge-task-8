@@ -10,28 +10,28 @@ namespace SchemaValidation.Library.Validators
     /// </summary>
     public sealed class DateValidator : Validator<DateTime>
     {
-        private DateTime? _min;
-        private DateTime? _max;
+        private DateTime? _minDate;
+        private DateTime? _maxDate;
 
         /// <summary>
         /// Sets the minimum allowed date (inclusive).
         /// </summary>
-        /// <param name="value">The earliest date that will be considered valid</param>
+        /// <param name="minDate">The earliest date that will be considered valid</param>
         /// <returns>The validator instance for method chaining</returns>
-        public DateValidator MinDate(DateTime value)
+        public DateValidator Min(DateTime minDate)
         {
-            _min = value;
+            _minDate = minDate;
             return this;
         }
 
         /// <summary>
         /// Sets the maximum allowed date (inclusive).
         /// </summary>
-        /// <param name="value">The latest date that will be considered valid</param>
+        /// <param name="maxDate">The latest date that will be considered valid</param>
         /// <returns>The validator instance for method chaining</returns>
-        public DateValidator MaxDate(DateTime value)
+        public DateValidator Max(DateTime maxDate)
         {
-            _max = value;
+            _maxDate = maxDate;
             return this;
         }
 
@@ -42,14 +42,14 @@ namespace SchemaValidation.Library.Validators
         /// <returns>A ValidationResult indicating success or failure with error messages</returns>
         public override ValidationResult<DateTime> Validate(DateTime value)
         {
-            if (_min.HasValue && value < _min.Value)
+            if (_minDate.HasValue && value < _minDate.Value)
             {
-                return CreateError($"must be greater than or equal to {_min.Value:d}");
+                return CreateError($"Date must be greater than or equal to {_minDate.Value:d}");
             }
 
-            if (_max.HasValue && value > _max.Value)
+            if (_maxDate.HasValue && value > _maxDate.Value)
             {
-                return CreateError($"must be less than or equal to {_max.Value:d}");
+                return CreateError($"Date must be less than or equal to {_maxDate.Value:d}");
             }
 
             return ValidationResult.Success<DateTime>();

@@ -6,11 +6,11 @@ namespace SchemaValidation.Tests.Validators
 {
     public class BooleanValidatorTests
     {
-        private readonly BooleanValidator _validator;
+        private readonly Validator<object> _validator;
 
         public BooleanValidatorTests()
         {
-            _validator = new BooleanValidator();
+            _validator = Schema.Boolean();
         }
 
         [Fact]

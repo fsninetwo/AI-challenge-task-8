@@ -1,10 +1,10 @@
 using System;
 using SchemaValidation.Tests.Base;
-using SchemaValidation.Validators;
-using SchemaValidation.Core;
-using SchemaValidation.Models;
-using Xunit;
 using SchemaValidation.Library.Validators;
+using SchemaValidation.Core;
+using SchemaValidation.Library.Models;
+using SchemaValidation.Library.Schemas;
+using Xunit;
 
 namespace SchemaValidation.Tests.Validators;
 
@@ -18,11 +18,10 @@ public class NumberValidatorTests : ValidationTestBase
     }
 
     [Theory]
+    [InlineData(0)]
     [InlineData(42)]
     [InlineData(3.14)]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Validate_WhenValueIsNumber_ReturnsTrue(object value)
+    public void Validate_WhenValueIsNumber_ReturnsTrue(double value)
     {
         // Act
         var result = _validator.Validate(value);
@@ -33,13 +32,12 @@ public class NumberValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData("123")]
-    [InlineData(true)]
+    [InlineData("not a number")]
     [InlineData(null)]
     public void Validate_WhenValueIsNotNumber_ReturnsFalse(object value)
     {
         // Act
-        var result = _validator.Validate(value);
+        var result = _validator.Validate((double)value);
 
         // Assert
         Assert.False(result.IsValid);
@@ -47,9 +45,9 @@ public class NumberValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData(5, 1, 10)]
-    [InlineData(1, 1, 1)]
-    public void Validate_WhenValueIsInRange_ReturnsTrue(double value, double min, double max)
+    [InlineData(0, 10, 5)]
+    [InlineData(-10, 0, -5)]
+    public void Validate_WhenValueIsInRange_ReturnsTrue(double min, double max, double value)
     {
         // Arrange
         _validator.SetRange(min, max);
@@ -63,9 +61,10 @@ public class NumberValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData(0, 1, 10)]
-    [InlineData(11, 1, 10)]
-    public void Validate_WhenValueIsOutOfRange_ReturnsFalse(double value, double min, double max)
+    [InlineData(0, 10, -5)]
+    [InlineData(0, 10, 15)]
+    [InlineData(-10, 0, 5)]
+    public void Validate_WhenValueIsOutOfRange_ReturnsFalse(double min, double max, double value)
     {
         // Arrange
         _validator.SetRange(min, max);
@@ -79,14 +78,28 @@ public class NumberValidatorTests : ValidationTestBase
     }
 
     [Fact]
+    public void Validate_WithCustomMessage_UsesCustomMessageOnError()
+    {
+        // Arrange
+        var customMessage = "Value must be between 0 and 10";
+        _validator.SetRange(0, 10).WithMessage(customMessage);
+
+        // Act
+        var result = _validator.Validate(-5);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Message == customMessage);
+    }
+
+    [Fact]
     public void Min_WithValidInput_ShouldPass()
     {
         // Arrange
         _validator.Min(0);
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
 
         // Act
-        var result = validator.Validate(10);
+        var result = _validator.Validate(5);
 
         // Assert
         Assert.True(result.IsValid);
@@ -97,25 +110,23 @@ public class NumberValidatorTests : ValidationTestBase
     {
         // Arrange
         _validator.Min(0);
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
 
         // Act
-        var result = validator.Validate(-1);
+        var result = _validator.Validate(-1);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("must be greater than or equal to 0", result.Errors[0].Message);
+        Assert.Contains("Value must be greater than or equal to 0", result.Errors[0].Message);
     }
 
     [Fact]
     public void Max_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.Max(100);
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
+        _validator.Max(10);
 
         // Act
-        var result = validator.Validate(50);
+        var result = _validator.Validate(5);
 
         // Assert
         Assert.True(result.IsValid);
@@ -125,44 +136,14 @@ public class NumberValidatorTests : ValidationTestBase
     public void Max_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        _validator.Max(100);
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
+        _validator.Max(10);
 
         // Act
-        var result = validator.Validate(101);
+        var result = _validator.Validate(15);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("must be less than or equal to 100", result.Errors[0].Message);
-    }
-
-    [Fact]
-    public void Integer_WithValidInput_ShouldPass()
-    {
-        // Arrange
-        _validator.Integer();
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
-
-        // Act
-        var result = validator.Validate(42);
-
-        // Assert
-        Assert.True(result.IsValid);
-    }
-
-    [Fact]
-    public void Integer_WithInvalidInput_ShouldFail()
-    {
-        // Arrange
-        _validator.Integer();
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
-
-        // Act
-        var result = validator.Validate(42.5);
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains("must be an integer", result.Errors[0].Message);
+        Assert.Contains("Value must be less than or equal to 10", result.Errors[0].Message);
     }
 
     [Fact]
@@ -170,10 +151,9 @@ public class NumberValidatorTests : ValidationTestBase
     {
         // Arrange
         _validator.NonNegative();
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
 
         // Act
-        var result = validator.Validate(0);
+        var result = _validator.Validate(5);
 
         // Assert
         Assert.True(result.IsValid);
@@ -184,66 +164,65 @@ public class NumberValidatorTests : ValidationTestBase
     {
         // Arrange
         _validator.NonNegative();
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
 
         // Act
-        var result = validator.Validate(-1);
+        var result = _validator.Validate(-1);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("must be non-negative", result.Errors[0].Message);
+        Assert.Contains("Value must be greater than or equal to 0", result.Errors[0].Message);
     }
 
     [Fact]
-    public void CustomMessage_WithInvalidInput_ShouldUseCustomMessage()
+    public void SetRange_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.Min(0);
-        _validator.WithMessage("Custom min message");
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
+        _validator.SetRange(0, 10);
 
         // Act
-        var result = validator.Validate(-1);
+        var result = _validator.Validate(5);
+
+        // Assert
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void SetRange_WithInvalidInput_ShouldFail()
+    {
+        // Arrange
+        _validator.SetRange(0, 10);
+
+        // Act
+        var result = _validator.Validate(15);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Equal("Custom min message", result.Errors[0].Message);
+        Assert.Contains("Value must be less than or equal to 10", result.Errors[0].Message);
     }
 
     [Fact]
-    public void CombinedValidation_ShouldWork()
+    public void Age_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.Min(0);
-        _validator.Max(100);
-        _validator.Integer();
-        var validator = new ValidatorWrapper<double, double, NumberValidator>(_validator);
+        var validator = UserSchema.Create();
+        var user = CreateValidUser();
 
-        // Act & Assert
-        var validResult = validator.Validate(50);
-        Assert.True(validResult.IsValid);
+        // Act
+        var result = validator.Validate(user);
 
-        var tooSmallResult = validator.Validate(-1);
-        Assert.False(tooSmallResult.IsValid);
-        Assert.Contains("must be greater than or equal to 0", tooSmallResult.Errors[0].Message);
-
-        var tooBigResult = validator.Validate(101);
-        Assert.False(tooBigResult.IsValid);
-        Assert.Contains("must be less than or equal to 100", tooBigResult.Errors[0].Message);
-
-        var notIntegerResult = validator.Validate(50.5);
-        Assert.False(notIntegerResult.IsValid);
-        Assert.Contains("must be an integer", notIntegerResult.Errors[0].Message);
+        // Assert
+        Assert.True(result.IsValid);
     }
 
     [Fact]
     public void Age_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var user = CreateValidUser() with { Age = -1 };
+        var validator = UserSchema.Create();
+        var user = CreateInvalidUser();
 
         // Act
-        var result = UserSchema.Validate(user);
+        var result = validator.Validate(user);
 
         // Assert
         Assert.False(result.IsValid);

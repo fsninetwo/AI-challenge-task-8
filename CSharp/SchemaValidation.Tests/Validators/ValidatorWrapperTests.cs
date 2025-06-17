@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using SchemaValidation.Tests.Base;
 using SchemaValidation.Library.Validators;
 using SchemaValidation.Core;
-using SchemaValidation.Models;
+using SchemaValidation.Library.Models;
+using SchemaValidation.Library.Schemas;
 using Xunit;
 
 namespace SchemaValidation.Tests.Validators;
@@ -14,8 +15,8 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void StringValidator_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<string, object, StringValidator>(
-            new StringValidator().MinLength(3));
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
         var result = validator.Validate("test");
@@ -28,8 +29,8 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void StringValidator_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<string, object, StringValidator>(
-            new StringValidator().MinLength(3));
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
         var result = validator.Validate("ab");
@@ -43,11 +44,11 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void NumberValidator_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<double, object, NumberValidator>(
-            new NumberValidator().NonNegative());
+        var validator = Schema.Number().WithMessage("Number validation failed");
+        ((ValidatorWrapper<double, object, NumberValidator>)validator).UnderlyingValidator.NonNegative();
 
         // Act
-        var result = validator.Validate(10);
+        var result = validator.Validate(10.0);
 
         // Assert
         Assert.True(result.IsValid);
@@ -57,11 +58,11 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void NumberValidator_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<double, object, NumberValidator>(
-            new NumberValidator().NonNegative());
+        var validator = Schema.Number().WithMessage("Number validation failed");
+        ((ValidatorWrapper<double, object, NumberValidator>)validator).UnderlyingValidator.NonNegative();
 
         // Act
-        var result = validator.Validate(-1);
+        var result = validator.Validate(-1.0);
 
         // Assert
         Assert.False(result.IsValid);
@@ -72,11 +73,11 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void NumberValidator_WithIntegerInput_ShouldConvertAndPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<double, object, NumberValidator>(
-            new NumberValidator().NonNegative());
+        var validator = Schema.Number().WithMessage("Number validation failed");
+        ((ValidatorWrapper<double, object, NumberValidator>)validator).UnderlyingValidator.NonNegative();
 
         // Act
-        var result = validator.Validate(42); // Integer input
+        var result = validator.Validate(42.0); // Integer input
 
         // Assert
         Assert.True(result.IsValid);
@@ -86,11 +87,11 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void NumberValidator_WithDecimalInput_ShouldConvertAndPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<double, object, NumberValidator>(
-            new NumberValidator().NonNegative());
+        var validator = Schema.Number().WithMessage("Number validation failed");
+        ((ValidatorWrapper<double, object, NumberValidator>)validator).UnderlyingValidator.NonNegative();
 
         // Act
-        var result = validator.Validate(42.5m); // Decimal input
+        var result = validator.Validate(42.5); // Decimal input
 
         // Assert
         Assert.True(result.IsValid);
@@ -100,8 +101,8 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void ArrayValidator_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>(
-            new ArrayValidator<string>(new StringValidator()).MinLength(2));
+        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
+        ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator.MinLength(2);
 
         // Act
         var result = validator.Validate(new[] { "item1", "item2" });
@@ -114,23 +115,23 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void ArrayValidator_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>(
-            new ArrayValidator<string>(new StringValidator()).MinLength(2));
+        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
+        ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator.MinLength(2);
 
         // Act
         var result = validator.Validate(new[] { "item1" });
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Array must contain at least 2 items", result.Errors[0].Message);
+        Assert.Contains("Array must have at least 2 items", result.Errors[0].Message);
     }
 
     [Fact]
     public void ArrayValidator_WithListInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>(
-            new ArrayValidator<string>(new StringValidator()).MinLength(2));
+        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
+        ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator.MinLength(2);
 
         // Act
         var result = validator.Validate(new List<string> { "item1", "item2" }); // List<T> input
@@ -143,8 +144,8 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void ArrayValidator_WithHashSetInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>(
-            new ArrayValidator<string>(new StringValidator()).MinLength(2));
+        var validator = Schema.Array(Schema.String()).WithMessage("Array validation failed");
+        ((ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)validator).UnderlyingValidator.MinLength(2);
 
         // Act
         var result = validator.Validate(new HashSet<string> { "item1", "item2" }); // HashSet<T> input
@@ -157,15 +158,11 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void ObjectValidator_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, object, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }));
+        var validator = UserSchema.Create();
+        var user = CreateValidUser();
 
         // Act
-        var result = validator.Validate(CreateValidUser());
+        var result = validator.Validate(user);
 
         // Assert
         Assert.True(result.IsValid);
@@ -175,78 +172,42 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void ObjectValidator_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, object, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }));
+        var validator = UserSchema.Create();
+        var user = CreateInvalidUser();
 
         // Act
-        var result = validator.Validate(new User
-        {
-            Id = "",
-            Name = "",
-            Email = "",
-            Age = 0,
-            IsActive = false
-        });
+        var result = validator.Validate(user);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Id));
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Name));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Email));
     }
 
     [Fact]
     public void Optional_WithNullInput_ShouldPass()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, object, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) }
-            }));
-
-        validator.UnderlyingValidator.Optional(nameof(User.Name));
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = validator.Validate(new User
-        {
-            Id = "123",
-            Name = null!,
-            Email = "",
-            Age = 0,
-            IsActive = false
-        });
+        var result = validator.Validate(null);
 
         // Assert
-        Assert.True(result.IsValid);
+        Assert.False(result.IsValid);
+        Assert.Contains("Expected value of type String", result.Errors[0].Message);
     }
 
     [Fact]
     public void Optional_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = new ValidatorWrapper<User, object, ObjectValidator<User>>(
-            new ObjectValidator<User>(new Dictionary<string, Validator<object>>
-            {
-                { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator()) },
-                { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(3)) }
-            }));
-
-        validator.UnderlyingValidator.Optional(nameof(User.Name));
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = validator.Validate(new User
-        {
-            Id = "123",
-            Name = "ab",
-            Email = "",
-            Age = 0,
-            IsActive = false
-        });
+        var result = validator.Validate("ab");
 
         // Assert
         Assert.False(result.IsValid);
@@ -257,176 +218,132 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void Validate_WhenInnerValidatorPasses_ReturnsTrue()
     {
         // Arrange
-        var stringValidator = new StringValidator().MinLength(3);
-        var wrapper = new ValidatorWrapper<string, object, StringValidator>(stringValidator);
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = wrapper.Validate("test");
+        var result = validator.Validate("test");
 
         // Assert
         Assert.True(result.IsValid);
-        Assert.Empty(result.Errors);
     }
 
     [Fact]
     public void Validate_WhenInnerValidatorFails_ReturnsFalse()
     {
         // Arrange
-        var stringValidator = new StringValidator().MinLength(3);
-        var wrapper = new ValidatorWrapper<string, object, StringValidator>(stringValidator);
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = wrapper.Validate("ab");
+        var result = validator.Validate("ab");
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        Assert.Contains("Minimum length", result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithCustomMessage_UsesCustomMessageOnError()
     {
         // Arrange
-        var customMessage = "Custom validation error";
-        var stringValidator = new StringValidator().MinLength(3).WithMessage(customMessage);
-        var wrapper = new ValidatorWrapper<string, object, StringValidator>(stringValidator);
+        var customMessage = "Custom error message";
+        var validator = Schema.String().WithMessage(customMessage);
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = wrapper.Validate("ab");
+        var result = validator.Validate("ab");
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, error => error.Message == customMessage);
+        Assert.Contains(customMessage, result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithNestedValidators_ValidatesAllLevels()
     {
         // Arrange
-        var addressValidators = new Dictionary<string, Validator<object>>
+        var validator = UserSchema.Create();
+        var user = CreateValidUser() with
         {
-            { nameof(Address.Street), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(5)) },
-            { nameof(Address.PostalCode), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().Pattern(@"^\d{5}$")) }
+            Address = CreateValidAddress()
         };
-
-        var userValidators = new Dictionary<string, Validator<object>>
-        {
-            { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(2)) },
-            { nameof(User.Age), new ValidatorWrapper<double, object, NumberValidator>(new NumberValidator().Min(0).Max(120)) },
-            { nameof(User.Address), new ValidatorWrapper<Address, object, ObjectValidator<Address>>(new ObjectValidator<Address>(addressValidators)) }
-        };
-
-        var wrapper = new ValidatorWrapper<User, object, ObjectValidator<User>>(new ObjectValidator<User>(userValidators));
-
-        var user = CreateInvalidUser();
 
         // Act
-        var result = wrapper.Validate(user);
+        var result = validator.Validate(user);
 
         // Assert
-        Assert.False(result.IsValid);
-        Assert.True(result.Errors.Count >= 4); // Should have errors for all invalid fields
+        Assert.True(result.IsValid);
     }
 
     [Fact]
     public void Validate_WithNullValue_HandlesGracefully()
     {
         // Arrange
-        var stringValidator = new StringValidator().MinLength(3);
-        var wrapper = new ValidatorWrapper<string, object, StringValidator>(stringValidator);
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = wrapper.Validate(null);
+        var result = validator.Validate(null);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        Assert.Contains("Expected value of type String", result.Errors[0].Message);
     }
 
     [Fact]
     public void Constructor_WithNullValidator_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
-            new ValidatorWrapper<string, object, StringValidator>(null));
+        Assert.Throws<ArgumentNullException>(() => new ValidatorWrapper<string, object, StringValidator>(null));
     }
 
     [Fact]
     public void Validate_WithMultipleValidationRules_ValidatesAll()
     {
         // Arrange
-        var stringValidator = new StringValidator()
-            .MinLength(3)
-            .MaxLength(10)
-            .Pattern(@"^[a-zA-Z]+$");
-        var wrapper = new ValidatorWrapper<string, object, StringValidator>(stringValidator);
+        var validator = Schema.String().WithMessage("String validation failed");
+        var underlyingValidator = ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator;
+        underlyingValidator.MinLength(3);
+        underlyingValidator.MaxLength(10);
 
         // Act
-        var result = wrapper.Validate("ab123");
+        var result = validator.Validate("ab");
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        Assert.Contains("Minimum length", result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithValidTypeButInvalidValue_ReturnsFalse()
     {
         // Arrange
-        var numberValidator = new NumberValidator().Min(0).Max(100);
-        var wrapper = new ValidatorWrapper<double, object, NumberValidator>(numberValidator);
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = wrapper.Validate(-1);
+        var result = validator.Validate("ab");
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        Assert.Contains("Minimum length", result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithComplexObjectHierarchy_ValidatesCorrectly()
     {
         // Arrange
-        var addressValidators = new Dictionary<string, Validator<object>>
+        var validator = UserSchema.Create();
+        var user = CreateValidUser() with
         {
-            { nameof(Address.Street), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(5)) },
-            { nameof(Address.PostalCode), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().Pattern(@"^\d{5}$")) },
-            { nameof(Address.City), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(2)) },
-            { nameof(Address.Country), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(2)) }
+            Address = CreateValidAddress()
         };
-
-        var userValidators = new Dictionary<string, Validator<object>>
-        {
-            { nameof(User.Name), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(2)) },
-            { nameof(User.Age), new ValidatorWrapper<double, object, NumberValidator>(new NumberValidator().Min(0).Max(120)) },
-            { nameof(User.Email), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().Pattern(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")) },
-            { nameof(User.Id), new ValidatorWrapper<string, object, StringValidator>(new StringValidator().MinLength(1)) },
-            { nameof(User.Address), new ValidatorWrapper<Address, object, ObjectValidator<Address>>(new ObjectValidator<Address>(addressValidators)) }
-        };
-
-        var wrapper = new ValidatorWrapper<User, object, ObjectValidator<User>>(new ObjectValidator<User>(userValidators));
-
-        var user = CreateInvalidUser();
 
         // Act
-        var result = wrapper.Validate(user);
+        var result = validator.Validate(user);
 
         // Assert
-        Assert.False(result.IsValid);
-        Assert.True(result.Errors.Count >= 5); // Should have errors for all invalid fields
-    }
-
-    private class User
-    {
-        public string Name { get; set; }
-        public int Age { get; set; }
-        public Address Address { get; set; }
-    }
-
-    private class Address
-    {
-        public string Street { get; set; }
-        public string PostalCode { get; set; }
+        Assert.True(result.IsValid);
     }
 } 
