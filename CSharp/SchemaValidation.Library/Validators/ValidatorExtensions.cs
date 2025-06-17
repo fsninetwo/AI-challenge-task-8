@@ -29,57 +29,76 @@ public static class ValidatorExtensions
 
     public static StringValidator MinLength(this StringValidator validator, int length)
     {
+        ArgumentNullException.ThrowIfNull(validator);
         return validator.MinLength(length);
     }
 
     public static StringValidator MaxLength(this StringValidator validator, int length)
     {
+        ArgumentNullException.ThrowIfNull(validator);
         return validator.MaxLength(length);
     }
 
     public static StringValidator Pattern(this StringValidator validator, string pattern)
     {
+        ArgumentNullException.ThrowIfNull(validator);
         return validator.Pattern(pattern);
     }
 
     public static NumberValidator NonNegative(this NumberValidator validator)
     {
-        return validator.NonNegative();
+        ArgumentNullException.ThrowIfNull(validator);
+        validator.SetNonNegative();
+        return validator;
     }
 
     public static NumberValidator Min(this NumberValidator validator, double value)
     {
-        return validator.Min(value);
+        ArgumentNullException.ThrowIfNull(validator);
+        validator.SetMin(value);
+        return validator;
     }
 
     public static NumberValidator Max(this NumberValidator validator, double value)
     {
-        return validator.Max(value);
+        ArgumentNullException.ThrowIfNull(validator);
+        validator.SetMax(value);
+        return validator;
     }
 
     public static ArrayValidator<T> MinLength<T>(this ArrayValidator<T> validator, int length)
     {
-        return validator.MinLength(length);
+        ArgumentNullException.ThrowIfNull(validator);
+        validator.SetMinLength(length);
+        return validator;
     }
 
     public static ArrayValidator<T> MaxLength<T>(this ArrayValidator<T> validator, int length)
     {
-        return validator.MaxLength(length);
+        ArgumentNullException.ThrowIfNull(validator);
+        validator.SetMaxLength(length);
+        return validator;
     }
 
     public static ArrayValidator<T> Unique<T>(this ArrayValidator<T> validator)
     {
-        return validator.Unique();
+        ArgumentNullException.ThrowIfNull(validator);
+        validator.SetUnique();
+        return validator;
     }
 
     public static ArrayValidator<T> UniqueBy<T>(this ArrayValidator<T> validator, Func<T, T, bool> uniqueBy)
     {
-        return validator.UniqueBy(uniqueBy);
+        ArgumentNullException.ThrowIfNull(validator);
+        ArgumentNullException.ThrowIfNull(uniqueBy);
+        validator.SetUniqueBy(uniqueBy);
+        return validator;
     }
 
     public static TValidator WithMessage<TValidator>(this TValidator validator, string message)
         where TValidator : Validator<object>
     {
+        ArgumentNullException.ThrowIfNull(validator);
         validator.WithMessage(message);
         return validator;
     }
@@ -93,7 +112,7 @@ public static class ValidatorExtensions
         }
         if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayValidator)
         {
-            arrayValidator.UnderlyingValidator.MinLength(length);
+            arrayValidator.UnderlyingValidator.SetMinLength(length);
             return validator;
         }
         throw new InvalidOperationException("MinLength is only supported for string and array validators.");
@@ -108,7 +127,7 @@ public static class ValidatorExtensions
         }
         if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayValidator)
         {
-            arrayValidator.UnderlyingValidator.MaxLength(length);
+            arrayValidator.UnderlyingValidator.SetMaxLength(length);
             return validator;
         }
         throw new InvalidOperationException("MaxLength is only supported for string and array validators.");
@@ -128,7 +147,7 @@ public static class ValidatorExtensions
     {
         if (validator is ValidatorWrapper<double, object, NumberValidator> numberValidator)
         {
-            numberValidator.UnderlyingValidator.NonNegative();
+            numberValidator.UnderlyingValidator.SetNonNegative();
             return validator;
         }
         throw new InvalidOperationException("NonNegative is only supported for number validators.");

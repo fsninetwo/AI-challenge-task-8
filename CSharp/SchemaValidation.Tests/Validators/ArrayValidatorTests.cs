@@ -188,14 +188,14 @@ public class ArrayValidatorTests : ValidationTestBase
     public void UniqueBy_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        _underlyingStringValidator.UniqueBy((x, y) => x.ToLower() == y.ToLower());
+        _underlyingStringValidator.SetUniqueBy(x => x.ToLower(), "LowercaseValue");
 
         // Act
         var result = _stringArrayValidator.Validate(new[] { "item1", "ITEM1", "item2" });
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Array contains duplicate items", result.Errors[0].Message);
+        Assert.Contains("Duplicate value", result.Errors[0].Message);
     }
 
     [Fact]
@@ -203,7 +203,8 @@ public class ArrayValidatorTests : ValidationTestBase
     {
         // Arrange
         var customMessage = "Array validation failed";
-        _underlyingStringValidator.MinLength(3).WithMessage(customMessage);
+        _underlyingStringValidator.MinLength(3);
+        _stringArrayValidator.WithMessage(customMessage);
 
         // Act
         var result = _stringArrayValidator.Validate(new[] { "item1", "item2" });
@@ -218,7 +219,7 @@ public class ArrayValidatorTests : ValidationTestBase
     {
         // Arrange
         var itemValidator = Schema.Number();
-        ((SchemaValidation.Core.ValidatorWrapper<double, object, NumberValidator>)itemValidator).UnderlyingValidator.NonNegative();
+        ((SchemaValidation.Core.ValidatorWrapper<double, object, NumberValidator>)itemValidator).UnderlyingValidator.SetMin(0);
         var arrayValidator = Schema.Array<double>(itemValidator);
 
         // Act
@@ -226,7 +227,7 @@ public class ArrayValidatorTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("must be non-negative", result.Errors[0].Message);
+        Assert.Contains("Value must be greater than or equal to 0", result.Errors[0].Message);
     }
 
     [Fact]

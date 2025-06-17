@@ -10,11 +10,13 @@ namespace SchemaValidation.Tests.Validators;
 
 public class NumberValidatorTests : ValidationTestBase
 {
-    private readonly NumberValidator _validator;
+    private readonly Validator<object> _validator;
+    private readonly NumberValidator _underlyingValidator;
 
     public NumberValidatorTests()
     {
-        _validator = new NumberValidator();
+        _validator = Schema.Number();
+        _underlyingValidator = ((SchemaValidation.Core.ValidatorWrapper<double, object, NumberValidator>)_validator).UnderlyingValidator;
     }
 
     [Theory]
@@ -32,16 +34,17 @@ public class NumberValidatorTests : ValidationTestBase
     }
 
     [Theory]
-    [InlineData("not a number")]
     [InlineData(null)]
+    [InlineData("not a number")]
+    [InlineData(true)]
     public void Validate_WhenValueIsNotNumber_ReturnsFalse(object value)
     {
         // Act
-        var result = _validator.Validate((double)value);
+        var result = _validator.Validate(value);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        Assert.Contains("Value must be a number", result.Errors[0].Message);
     }
 
     [Theory]
@@ -50,7 +53,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void Validate_WhenValueIsInRange_ReturnsTrue(double min, double max, double value)
     {
         // Arrange
-        _validator.SetRange(min, max);
+        _underlyingValidator.SetRange(min, max);
 
         // Act
         var result = _validator.Validate(value);
@@ -67,7 +70,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void Validate_WhenValueIsOutOfRange_ReturnsFalse(double min, double max, double value)
     {
         // Arrange
-        _validator.SetRange(min, max);
+        _underlyingValidator.SetRange(min, max);
 
         // Act
         var result = _validator.Validate(value);
@@ -82,7 +85,8 @@ public class NumberValidatorTests : ValidationTestBase
     {
         // Arrange
         var customMessage = "Value must be between 0 and 10";
-        _validator.SetRange(0, 10).WithMessage(customMessage);
+        _underlyingValidator.SetRange(0, 10);
+        _validator.WithMessage(customMessage);
 
         // Act
         var result = _validator.Validate(-5);
@@ -96,7 +100,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void Min_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.Min(0);
+        _underlyingValidator.SetMin(0);
 
         // Act
         var result = _validator.Validate(5);
@@ -109,7 +113,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void Min_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        _validator.Min(0);
+        _underlyingValidator.SetMin(0);
 
         // Act
         var result = _validator.Validate(-1);
@@ -123,7 +127,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void Max_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.Max(10);
+        _underlyingValidator.SetMax(10);
 
         // Act
         var result = _validator.Validate(5);
@@ -136,7 +140,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void Max_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        _validator.Max(10);
+        _underlyingValidator.SetMax(10);
 
         // Act
         var result = _validator.Validate(15);
@@ -150,7 +154,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void NonNegative_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.NonNegative();
+        _underlyingValidator.SetNonNegative();
 
         // Act
         var result = _validator.Validate(5);
@@ -163,7 +167,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void NonNegative_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        _validator.NonNegative();
+        _underlyingValidator.SetNonNegative();
 
         // Act
         var result = _validator.Validate(-1);
@@ -177,7 +181,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void SetRange_WithValidInput_ShouldPass()
     {
         // Arrange
-        _validator.SetRange(0, 10);
+        _underlyingValidator.SetRange(0, 10);
 
         // Act
         var result = _validator.Validate(5);
@@ -190,7 +194,7 @@ public class NumberValidatorTests : ValidationTestBase
     public void SetRange_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        _validator.SetRange(0, 10);
+        _underlyingValidator.SetRange(0, 10);
 
         // Act
         var result = _validator.Validate(15);
@@ -204,11 +208,22 @@ public class NumberValidatorTests : ValidationTestBase
     public void Age_WithValidInput_ShouldPass()
     {
         // Arrange
-        var validator = UserSchema.Create();
-        var user = CreateValidUser();
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Age), Schema.Number().WithMessage("Age must be non-negative") }
+        };
+        var validator = Schema.ObjectAsValidator<User>(schema);
+        ((ValidatorWrapper<double, object, NumberValidator>)schema[nameof(User.Age)]).UnderlyingValidator.SetNonNegative();
 
         // Act
-        var result = validator.Validate(user);
+        var result = validator.Validate(new User
+        {
+            Id = "123",
+            Name = "John",
+            Email = "john@example.com",
+            Age = 25,
+            IsActive = true
+        });
 
         // Assert
         Assert.True(result.IsValid);
@@ -218,11 +233,22 @@ public class NumberValidatorTests : ValidationTestBase
     public void Age_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = UserSchema.Create();
-        var user = CreateInvalidUser();
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Age), Schema.Number().WithMessage("Age must be non-negative") }
+        };
+        var validator = Schema.ObjectAsValidator<User>(schema);
+        ((ValidatorWrapper<double, object, NumberValidator>)schema[nameof(User.Age)]).UnderlyingValidator.SetNonNegative();
 
         // Act
-        var result = validator.Validate(user);
+        var result = validator.Validate(new User
+        {
+            Id = "123",
+            Name = "John",
+            Email = "john@example.com",
+            Age = -1,
+            IsActive = true
+        });
 
         // Assert
         Assert.False(result.IsValid);

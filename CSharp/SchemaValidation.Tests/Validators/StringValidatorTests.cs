@@ -42,7 +42,7 @@ public class StringValidatorTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.NotEmpty(result.Errors);
+        Assert.Contains(result.Errors, e => e.Message.Contains("Value must be a string"));
     }
 
     [Theory]
@@ -203,7 +203,7 @@ public class StringValidatorTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Email", result.Errors[0].Message);
+        Assert.Contains("Email format is invalid", result.Errors[0].Message);
     }
 
     [Fact]
@@ -217,6 +217,6 @@ public class StringValidatorTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Phone number", result.Errors[0].Message);
+        Assert.Contains("Phone number format is invalid", result.Errors[0].Message);
     }
 } 

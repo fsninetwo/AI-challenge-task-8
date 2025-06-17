@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using SchemaValidation.Core;
 
 namespace SchemaValidation.Core
@@ -19,7 +21,7 @@ namespace SchemaValidation.Core
         {
             if (value == null)
             {
-                return CreateError($"Expected value of type {typeof(TValue).Name}, got null");
+                return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
             }
 
             TValue typedValue;
@@ -29,19 +31,74 @@ namespace SchemaValidation.Core
                 {
                     typedValue = v;
                 }
+                else if (typeof(TValue) == typeof(string))
+                {
+                    if (value is string)
+                    {
+                        typedValue = (TValue)(object)value;
+                    }
+                    else
+                    {
+                        return CreateError("Value must be a string");
+                    }
+                }
+                else if (typeof(TValue) == typeof(double))
+                {
+                    if (value is IConvertible)
+                    {
+                        try
+                        {
+                            typedValue = (TValue)(object)Convert.ToDouble(value);
+                        }
+                        catch
+                        {
+                            return CreateError("Value must be a number");
+                        }
+                    }
+                    else
+                    {
+                        return CreateError("Value must be a number");
+                    }
+                }
+                else if (typeof(TValue) == typeof(bool))
+                {
+                    if (value is bool b)
+                    {
+                        typedValue = (TValue)(object)b;
+                    }
+                    else
+                    {
+                        return CreateError("Value must be a boolean");
+                    }
+                }
+                else if (value is IConvertible)
+                {
+                    try
+                    {
+                        typedValue = (TValue)Convert.ChangeType(value, typeof(TValue));
+                    }
+                    catch
+                    {
+                        return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                    }
+                }
                 else
                 {
-                    typedValue = (TValue)Convert.ChangeType(value, typeof(TValue));
+                    return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
                 }
             }
-            catch (Exception ex) when (ex is InvalidCastException || ex is FormatException)
+            catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is NullReferenceException || ex is OverflowException)
             {
-                return CreateError($"Expected value of type {typeof(TValue).Name}, got {value.GetType().Name}");
+                return CreateError($"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
             }
 
             var result = _validator.Validate(typedValue);
             if (!result.IsValid)
             {
+                if (_customErrorMessage != null)
+                {
+                    return ValidationResult.Failure<TObject>(new[] { new ValidationError(_customErrorMessage) });
+                }
                 return ValidationResult.Failure<TObject>(result.Errors);
             }
 
@@ -51,6 +108,7 @@ namespace SchemaValidation.Core
         public override Validator<TObject> WithMessage(string message)
         {
             _customErrorMessage = message;
+            _validator.WithMessage(message);
             return this;
         }
 

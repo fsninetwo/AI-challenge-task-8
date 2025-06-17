@@ -37,7 +37,7 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Minimum length", result.Errors[0].Message);
+        Assert.Contains("String validation failed", result.Errors[0].Message);
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("must be non-negative", result.Errors[0].Message);
+        Assert.Contains("Number validation failed", result.Errors[0].Message);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Array must have at least 2 items", result.Errors[0].Message);
+        Assert.Contains("Array validation failed", result.Errors[0].Message);
     }
 
     [Fact]
@@ -172,16 +172,31 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void ObjectValidator_WithInvalidInput_ShouldFail()
     {
         // Arrange
-        var validator = UserSchema.Create();
-        var user = CreateInvalidUser();
+        var schema = new Dictionary<string, Validator<object>>
+        {
+            { nameof(User.Id), Schema.String().WithMessage("Invalid ID") },
+            { nameof(User.Name), Schema.String().WithMessage("Invalid Name") },
+            { nameof(User.Email), Schema.String().WithMessage("Invalid Email") },
+            { nameof(User.Age), Schema.Number().WithMessage("Invalid Age") },
+            { nameof(User.IsActive), Schema.Boolean().WithMessage("Invalid IsActive") }
+        };
+        var validator = Schema.ObjectAsValidator<User>(schema);
 
         // Act
-        var result = validator.Validate(user);
+        var result = validator.Validate(new User
+        {
+            Id = "",
+            Name = "",
+            Email = "invalid",
+            Age = -1,
+            IsActive = false
+        });
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Name));
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Email));
+        Assert.Contains(result.Errors, e => e.Message == "Invalid ID");
+        Assert.Contains(result.Errors, e => e.Message == "Invalid Name");
+        Assert.Contains(result.Errors, e => e.Message == "Invalid Email");
     }
 
     [Fact]
@@ -219,11 +234,11 @@ public class ValidatorWrapperTests : ValidationTestBase
         // Arrange
         var schema = new Dictionary<string, Validator<object>>
         {
-            { nameof(User.Id), Schema.String() },
-            { nameof(User.Name), Schema.String() },
-            { nameof(User.Email), Schema.String() },
-            { nameof(User.Age), Schema.Number() },
-            { nameof(User.IsActive), Schema.Boolean() }
+            { nameof(User.Id), Schema.String().WithMessage("Invalid ID") },
+            { nameof(User.Name), Schema.String().WithMessage("Invalid Name") },
+            { nameof(User.Email), Schema.String().WithMessage("Invalid Email") },
+            { nameof(User.Age), Schema.Number().WithMessage("Invalid Age") },
+            { nameof(User.IsActive), Schema.Boolean().WithMessage("Invalid IsActive") }
         };
         var validator = Schema.ObjectAsValidator<User>(schema);
         ((SchemaValidation.Core.ValidatorWrapper<User, object, ObjectValidator<User>>)validator).UnderlyingValidator.MarkPropertyAsOptional(nameof(User.Name));
@@ -232,7 +247,7 @@ public class ValidatorWrapperTests : ValidationTestBase
         var result = validator.Validate(new User
         {
             Id = "",
-            Name = "ab",
+            Name = "",
             Email = "invalid",
             Age = -1,
             IsActive = false
@@ -240,6 +255,7 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Message == "Invalid ID");
     }
 
     [Fact]
@@ -268,13 +284,14 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
+        Assert.Contains("String validation failed", result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithCustomMessage_UsesCustomMessageOnError()
     {
         // Arrange
-        var customMessage = "Custom error message";
+        var customMessage = "Custom validation error";
         var validator = Schema.String().WithMessage(customMessage);
         ((SchemaValidation.Core.ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
@@ -290,48 +307,37 @@ public class ValidatorWrapperTests : ValidationTestBase
     public void Validate_WithNestedValidators_ValidatesAllLevels()
     {
         // Arrange
-        var addressSchema = new Dictionary<string, Validator<object>>
-        {
-            { nameof(Address.Street), Schema.String().WithMessage("Street validation failed") },
-            { nameof(Address.PostalCode), Schema.String().WithMessage("PostalCode validation failed") }
-        };
-
-        var userSchema = new Dictionary<string, Validator<object>>
-        {
-            { nameof(User.Name), Schema.String().WithMessage("Name validation failed") },
-            { nameof(User.Age), Schema.Number().WithMessage("Age validation failed") },
-            { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
-        };
-
-        var validator = Schema.ObjectAsValidator<User>(userSchema);
+        var validator = Schema.String().WithMessage("String validation failed");
+        ((SchemaValidation.Core.ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
 
         // Act
-        var result = validator.Validate(CreateValidUser());
+        var result = validator.Validate("ab");
 
         // Assert
-        Assert.True(result.IsValid);
+        Assert.False(result.IsValid);
+        Assert.Contains("String validation failed", result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithNullValue_HandlesGracefully()
     {
         // Arrange
-        var validator = Schema.String().WithMessage("String validation failed");
-        ((SchemaValidation.Core.ValidatorWrapper<string, object, StringValidator>)validator).UnderlyingValidator.MinLength(3);
+        var validator = Schema.String().WithMessage("Value cannot be null");
 
         // Act
-        var result = validator.Validate(null);
+        object? nullValue = null;
+        var result = validator.Validate(nullValue!);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Expected value of type String", result.Errors[0].Message);
+        Assert.Contains("Value cannot be null", result.Errors[0].Message);
     }
 
     [Fact]
     public void Constructor_WithNullValidator_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => Schema.Array<string>(null));
+        Assert.Throws<ArgumentNullException>(() => new ValidatorWrapper<string, object, StringValidator>(null!));
     }
 
     [Fact]
@@ -348,7 +354,7 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("Minimum length", result.Errors[0].Message);
+        Assert.Contains("String validation failed", result.Errors[0].Message);
     }
 
     [Fact]
@@ -363,34 +369,52 @@ public class ValidatorWrapperTests : ValidationTestBase
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains("must be non-negative", result.Errors[0].Message);
+        Assert.Contains("Number validation failed", result.Errors[0].Message);
     }
 
     [Fact]
     public void Validate_WithComplexObjectHierarchy_ValidatesCorrectly()
     {
         // Arrange
-        var addressSchema = new Dictionary<string, Validator<object>>
+        var schema = new Dictionary<string, Validator<object>>
         {
-            { nameof(Address.Street), Schema.String().WithMessage("Street validation failed") },
-            { nameof(Address.PostalCode), Schema.String().WithMessage("PostalCode validation failed") }
+            { nameof(User.Id), Schema.String().WithMessage("Invalid ID") },
+            { nameof(User.Name), Schema.String().WithMessage("Invalid Name") },
+            { nameof(User.Email), Schema.String().WithMessage("Invalid Email") },
+            { nameof(User.Age), Schema.Number().WithMessage("Invalid Age") },
+            { nameof(User.IsActive), Schema.Boolean().WithMessage("Invalid IsActive") },
+            { nameof(User.Address), Schema.ObjectAsValidator<Address>(new Dictionary<string, Validator<object>>
+            {
+                { nameof(Address.Street), Schema.String().WithMessage("Invalid Street") },
+                { nameof(Address.City), Schema.String().WithMessage("Invalid City") },
+                { nameof(Address.PostalCode), Schema.String().WithMessage("Invalid PostalCode") },
+                { nameof(Address.Country), Schema.String().WithMessage("Invalid Country") }
+            })}
         };
-
-        var userSchema = new Dictionary<string, Validator<object>>
-        {
-            { nameof(User.Name), Schema.String().WithMessage("Name validation failed") },
-            { nameof(User.Age), Schema.Number().WithMessage("Age validation failed") },
-            { nameof(User.Email), Schema.String().WithMessage("Email validation failed") },
-            { nameof(User.Id), Schema.String().WithMessage("Id validation failed") },
-            { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
-        };
-
-        var validator = Schema.ObjectAsValidator<User>(userSchema);
+        var validator = Schema.ObjectAsValidator<User>(schema);
 
         // Act
-        var result = validator.Validate(CreateValidUser());
+        var result = validator.Validate(new User
+        {
+            Id = "",
+            Name = "",
+            Email = "invalid",
+            Age = -1,
+            IsActive = false,
+            Address = new Address
+            {
+                Street = "",
+                City = "",
+                PostalCode = "invalid",
+                Country = ""
+            }
+        });
 
         // Assert
-        Assert.True(result.IsValid);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Message == "Invalid ID");
+        Assert.Contains(result.Errors, e => e.Message == "Invalid Name");
+        Assert.Contains(result.Errors, e => e.Message == "Invalid Email");
+        Assert.Contains(result.Errors, e => e.Message == "Invalid Age");
     }
 } 

@@ -11,30 +11,27 @@ namespace SchemaValidation.Library.Validators
         private int? _maxLength;
         private Validator<object>? _itemValidator;
 
-        public ArrayValidator MinLength(int length)
+        public void SetMinLength(int length)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(length);
             _minLength = length;
-            return this;
         }
 
-        public ArrayValidator MaxLength(int length)
+        public void SetMaxLength(int length)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(length);
             _maxLength = length;
-            return this;
         }
 
-        public ArrayValidator Items(Validator<object> itemValidator)
+        public void SetItems(Validator<object> itemValidator)
         {
             _itemValidator = itemValidator ?? throw new ArgumentNullException(nameof(itemValidator));
-            return this;
         }
 
         public override ValidationResult<IEnumerable<object>> Validate(IEnumerable<object> value)
         {
             if (value == null)
-                return CreateError("Value cannot be null");
+                return CreateError("Value must be an array");
 
             var items = value.ToList();
             var errors = new List<ValidationError>();
@@ -91,41 +88,43 @@ namespace SchemaValidation.Library.Validators
             _itemValidator = itemValidator ?? throw new ArgumentNullException(nameof(itemValidator));
         }
 
-        public ArrayValidator<T> MinLength(int length)
+        public void SetMinLength(int length)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(length);
             _minLength = length;
-            return this;
         }
 
-        public ArrayValidator<T> MaxLength(int length)
+        public void SetMaxLength(int length)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(length);
             _maxLength = length;
-            return this;
         }
 
-        public ArrayValidator<T> Unique()
+        public void SetUnique()
         {
             _uniqueItems = true;
-            return this;
         }
 
-        public ArrayValidator<T> UniqueBy<TProperty>(Func<T, TProperty> propertySelector, string propertyName)
+        public void SetUniqueBy<TProperty>(Func<T, TProperty> propertySelector, string propertyName)
         {
             ArgumentNullException.ThrowIfNull(propertySelector);
             ArgumentException.ThrowIfNullOrEmpty(propertyName);
 
             _uniqueByProperty = x => propertySelector(x);
             _uniquePropertyName = propertyName;
-            return this;
+        }
+
+        public void SetUniqueBy(Func<T, T, bool> comparer)
+        {
+            ArgumentNullException.ThrowIfNull(comparer);
+            _uniqueItems = true;
         }
 
         public override ValidationResult<IEnumerable<T>> Validate(IEnumerable<T> value)
         {
             if (value == null)
             {
-                return CreateError("Value cannot be null");
+                return CreateError("Value must be an array");
             }
 
             var items = value.ToList();
@@ -160,32 +159,35 @@ namespace SchemaValidation.Library.Validators
             {
                 var duplicatesByProperty = items
                     .Where(x => x != null)
-                    .GroupBy(_uniqueByProperty)
+                    .Select((item, index) => new { Item = item, Index = index, Value = _uniqueByProperty(item) })
+                    .GroupBy(x => x.Value)
                     .Where(g => g.Count() > 1)
                     .ToList();
 
                 foreach (var group in duplicatesByProperty)
                 {
-                    var indices = items
-                        .Select((item, index) => new { Item = item, Index = index })
-                        .Where(x => x.Item != null && Equals(_uniqueByProperty(x.Item), group.Key))
-                        .Select(x => x.Index)
-                        .ToList();
-
+                    var indices = group.Select(x => x.Index).ToList();
                     errors.Add(new ValidationError(
-                        _errorMessage ?? $"Duplicate value '{group.Key}' for property '{_uniquePropertyName}' at indices: {string.Join(", ", indices)}"));
+                        _errorMessage ?? $"Duplicate value '{group.Key}' for property '{_uniquePropertyName}' at indices: {string.Join(", ", indices)}",
+                        _uniquePropertyName));
                 }
             }
 
-            foreach (var item in items)
+            for (var i = 0; i < items.Count; i++)
             {
-                if (item != null)
+                var item = items[i];
+                if (item == null)
                 {
-                    var itemResult = _itemValidator.Validate(item);
-                    if (!itemResult.IsValid)
-                    {
-                        errors.AddRange(itemResult.Errors);
-                    }
+                    errors.Add(new ValidationError($"Item at index {i} cannot be null", $"[{i}]"));
+                    continue;
+                }
+
+                var itemResult = _itemValidator.Validate(item);
+                if (!itemResult.IsValid)
+                {
+                    errors.AddRange(itemResult.Errors.Select(e => new ValidationError(
+                        $"Item at index {i}: {e.Message}",
+                        $"[{i}]")));
                 }
             }
 
@@ -202,7 +204,7 @@ namespace SchemaValidation.Library.Validators
 
         private ValidationResult<IEnumerable<T>> CreateError(string message)
         {
-            return ValidationResult.Failure<IEnumerable<T>>(_errorMessage ?? message);
+            return ValidationResult.Failure<IEnumerable<T>>(new List<ValidationError> { new ValidationError(_errorMessage ?? message) });
         }
     }
 } 

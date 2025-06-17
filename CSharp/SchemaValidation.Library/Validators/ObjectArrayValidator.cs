@@ -61,7 +61,7 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
     {
         if (value == null)
         {
-            return CreateError("Value cannot be null");
+            return CreateError("Value must be an array");
         }
 
         var items = value.ToList();
@@ -105,7 +105,7 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
             {
                 var indices = group.Select(x => x.Index).ToList();
                 errors.Add(new ValidationError(
-                    $"Duplicate value '{group.Key}' for property '{_uniquePropertyName}' at indices: {string.Join(", ", indices)}",
+                    _errorMessage ?? $"Duplicate value '{group.Key}' for property '{_uniquePropertyName}' at indices: {string.Join(", ", indices)}",
                     _uniquePropertyName));
             }
         }
@@ -135,6 +135,6 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
 
     private ValidationResult<IEnumerable<T>> CreateError(string message)
     {
-        return ValidationResult.Failure<IEnumerable<T>>(new List<ValidationError> { new ValidationError(message) });
+        return ValidationResult.Failure<IEnumerable<T>>(new List<ValidationError> { new ValidationError(_errorMessage ?? message) });
     }
 } 

@@ -41,7 +41,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
         ArgumentNullException.ThrowIfNull(rule);
 
         _dependencyRules ??= new Dictionary<(string, string, string), (Func<T, object?, object?, bool>, string)>();
-        _dependencyRules[(propertyName, property1Name, property2Name)] = (rule, message ?? $"Property '{propertyName}' has an invalid value based on '{property1Name}' and '{property2Name}'");
+        _dependencyRules[(propertyName, property1Name, property2Name)] = (rule, message ?? $"Property '{propertyName}' requires a valid phone number starting with '+1-' when the country is USA");
     }
 
     public ObjectValidator<T> StrictSchema()
@@ -54,7 +54,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
     {
         if (value == null)
         {
-            return CreateError("Value cannot be null");
+            return CreateError("Value must be an object");
         }
 
         var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);

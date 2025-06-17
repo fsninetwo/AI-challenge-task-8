@@ -14,27 +14,24 @@ namespace SchemaValidation.Library.Validators
         private double? _max;
         private bool _integer;
         private bool _nonNegative;
+        private string? _customErrorMessage;
 
         /// <summary>
         /// Sets the minimum allowed value (inclusive).
         /// </summary>
         /// <param name="value">The minimum value that will be considered valid</param>
-        /// <returns>The validator instance for method chaining</returns>
-        public NumberValidator Min(double value)
+        public void SetMin(double value)
         {
             _min = value;
-            return this;
         }
 
         /// <summary>
         /// Sets the maximum allowed value (inclusive).
         /// </summary>
         /// <param name="value">The maximum value that will be considered valid</param>
-        /// <returns>The validator instance for method chaining</returns>
-        public NumberValidator Max(double value)
+        public void SetMax(double value)
         {
             _max = value;
-            return this;
         }
 
         /// <summary>
@@ -42,34 +39,28 @@ namespace SchemaValidation.Library.Validators
         /// </summary>
         /// <param name="min">The minimum value that will be considered valid</param>
         /// <param name="max">The maximum value that will be considered valid</param>
-        /// <returns>The validator instance for method chaining</returns>
-        public NumberValidator SetRange(double min, double max)
+        public void SetRange(double min, double max)
         {
             _min = min;
             _max = max;
-            return this;
         }
 
         /// <summary>
         /// Requires the value to be an integer (no decimal places).
         /// Uses epsilon comparison to handle floating-point precision issues.
         /// </summary>
-        /// <returns>The validator instance for method chaining</returns>
-        public NumberValidator Integer()
+        public void SetInteger()
         {
             _integer = true;
-            return this;
         }
 
         /// <summary>
         /// Requires the value to be non-negative (greater than or equal to zero).
         /// </summary>
-        /// <returns>The validator instance for method chaining</returns>
-        public NumberValidator NonNegative()
+        public void SetNonNegative()
         {
             _min = 0;
             _nonNegative = true;
-            return this;
         }
 
         /// <summary>
@@ -81,25 +72,31 @@ namespace SchemaValidation.Library.Validators
         {
             if (_min.HasValue && value < _min.Value)
             {
-                return CreateError($"Value must be greater than or equal to {_min.Value}");
+                return CreateError(_customErrorMessage ?? $"Value must be greater than or equal to {_min.Value}");
             }
 
             if (_max.HasValue && value > _max.Value)
             {
-                return CreateError($"Value must be less than or equal to {_max.Value}");
+                return CreateError(_customErrorMessage ?? $"Value must be less than or equal to {_max.Value}");
             }
 
             if (_integer && Math.Abs(value % 1) > double.Epsilon)
             {
-                return CreateError("must be an integer");
+                return CreateError(_customErrorMessage ?? "Value must be an integer");
             }
 
             if (_nonNegative && value < 0)
             {
-                return CreateError("must be non-negative");
+                return CreateError(_customErrorMessage ?? "Value must be non-negative");
             }
 
             return ValidationResult.Success<double>();
+        }
+
+        public override Validator<double> WithMessage(string message)
+        {
+            _customErrorMessage = message;
+            return this;
         }
     }
 } 

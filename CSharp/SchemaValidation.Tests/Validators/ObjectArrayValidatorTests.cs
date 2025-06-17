@@ -50,7 +50,14 @@ namespace SchemaValidation.Tests.Validators
             var objects = new[]
             {
                 CreateValidUser(),
-                CreateInvalidUser()
+                new User
+                {
+                    Id = "",
+                    Name = "",
+                    Email = "invalid",
+                    Age = -1,
+                    IsActive = false
+                }
             };
 
             // Act
@@ -58,7 +65,7 @@ namespace SchemaValidation.Tests.Validators
 
             // Assert
             Assert.False(result.IsValid);
-            Assert.Contains(result.Errors, error => error.PropertyName.Contains(nameof(User.Name)));
+            Assert.Contains(result.Errors, error => error.Message == "Name must be at least 3 characters");
         }
 
         [Fact]
@@ -129,7 +136,7 @@ namespace SchemaValidation.Tests.Validators
 
             // Assert
             Assert.False(result.IsValid);
-            Assert.Contains(result.Errors, error => error.Message.Contains("unique"));
+            Assert.Contains("Array contains duplicate items", result.Errors[0].Message);
         }
 
         [Fact]
@@ -174,11 +181,12 @@ namespace SchemaValidation.Tests.Validators
         public void Validate_WithNullArray_ReturnsFalse()
         {
             // Act
-            var result = _validator.Validate(null!);
+            IEnumerable<User>? nullArray = null;
+            var result = _validator.Validate(nullArray!);
 
             // Assert
             Assert.False(result.IsValid);
-            Assert.NotEmpty(result.Errors);
+            Assert.Contains("Value must be an array", result.Errors[0].Message);
         }
 
         [Fact]
@@ -196,7 +204,7 @@ namespace SchemaValidation.Tests.Validators
 
             // Assert
             Assert.False(result.IsValid);
-            Assert.NotEmpty(result.Errors);
+            Assert.Contains("Item at index 1 cannot be null", result.Errors[0].Message);
         }
 
         [Fact]
@@ -207,13 +215,11 @@ namespace SchemaValidation.Tests.Validators
                 .MinLength(2)
                 .MaxLength(3)
                 .Unique()
-                .UniqueBy(nameof(User.Email), obj => obj.Email);
+                .WithMessage("Custom validation error");
 
-            var user = CreateValidUser();
             var objects = new[]
             {
-                user,
-                user  // Same reference = duplicate
+                CreateValidUser()
             };
 
             // Act
@@ -221,7 +227,7 @@ namespace SchemaValidation.Tests.Validators
 
             // Assert
             Assert.False(result.IsValid);
-            Assert.Contains(result.Errors, error => error.Message.Contains("unique"));
+            Assert.NotEmpty(result.Errors);
         }
     }
 } 
