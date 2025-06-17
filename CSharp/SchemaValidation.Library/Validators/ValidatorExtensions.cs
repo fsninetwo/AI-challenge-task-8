@@ -91,7 +91,7 @@ public static class ValidatorExtensions
             stringValidator.UnderlyingValidator.MinLength(length);
             return validator;
         }
-        if (validator is ValidatorWrapper<IEnumerable<object>, object, ArrayValidator<object>> arrayValidator)
+        if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayValidator)
         {
             arrayValidator.UnderlyingValidator.MinLength(length);
             return validator;
@@ -106,7 +106,7 @@ public static class ValidatorExtensions
             stringValidator.UnderlyingValidator.MaxLength(length);
             return validator;
         }
-        if (validator is ValidatorWrapper<IEnumerable<object>, object, ArrayValidator<object>> arrayValidator)
+        if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayValidator)
         {
             arrayValidator.UnderlyingValidator.MaxLength(length);
             return validator;

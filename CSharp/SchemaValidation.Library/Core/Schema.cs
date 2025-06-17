@@ -26,7 +26,7 @@ public static class Schema
         return new ValidatorWrapper<DateTime, object, DateValidator>(new DateValidator());
     }
 
-    public static Validator<object> Array<T>(Validator<object> itemValidator)
+    public static ValidatorWrapper<IEnumerable<T>, object, ArrayValidator<T>> Array<T>(Validator<object> itemValidator)
     {
         ArgumentNullException.ThrowIfNull(itemValidator);
         return new ValidatorWrapper<IEnumerable<T>, object, ArrayValidator<T>>(new ArrayValidator<T>(itemValidator));

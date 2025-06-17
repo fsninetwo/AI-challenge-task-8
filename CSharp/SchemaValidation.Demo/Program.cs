@@ -48,7 +48,7 @@ class Program
             Age = 25,
             IsActive = true,
             Tags = new List<string> { "designer" },
-            PhoneNumber = null,  // Phone is optional for non-USA
+            PhoneNumber = "+44-1234567890",
             Address = new Address
             {
                 Street = "456 High Street",
@@ -98,12 +98,12 @@ class Program
 
             var schema = new Dictionary<string, Validator<object>>
             {
-                { nameof(User.Id), Schema.String().WithMessage("Id is required") },
+                { nameof(User.Id), Schema.String().MinLength(1).WithMessage("Id is required") },
                 { nameof(User.Name), Schema.String().MinLength(2).WithMessage("Name must be at least 2 characters long") },
                 { nameof(User.Email), Schema.String().Pattern(@"^[^\s@]+@[^\s@]+\.[^\s@]+$").WithMessage("Email must be a valid email address") },
                 { nameof(User.Age), Schema.Number().NonNegative().WithMessage("Age must be non-negative") },
                 { nameof(User.IsActive), Schema.Boolean() },
-                { nameof(User.Tags), Schema.Array(Schema.String()).MinLength(1).WithMessage("At least one tag is required") },
+                { nameof(User.Tags), Schema.Array<string>(Schema.String()).MinLength(1).WithMessage("At least one tag is required") },
                 { nameof(User.PhoneNumber), Schema.String().Pattern(@"^\+\d{1,3}-\d{10}$").WithMessage("Phone number must be in format: +X-XXXXXXXXXX") },
                 { nameof(User.Address), Schema.ObjectAsValidator<Address>(addressSchema) }
             };
@@ -118,7 +118,7 @@ class Program
                 nameof(User.PhoneNumber),
                 nameof(User.PhoneNumber),
                 $"{nameof(User.Address)}.{nameof(Address.Country)}",
-                (user, phone, country) => country?.ToString() != "USA" || (!string.IsNullOrEmpty(phone?.ToString()) && phone.ToString()!.StartsWith("+1-")),
+                (user, phone, country) => country?.ToString() != "USA" || (phone?.ToString()?.StartsWith("+1-") ?? false),
                 "Phone number must start with +1- for USA addresses");
 
             return validator;
