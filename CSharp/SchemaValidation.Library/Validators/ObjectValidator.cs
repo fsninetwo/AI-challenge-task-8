@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators;
+namespace SchemaValidation.Library.Validators;
 
 public sealed class ObjectValidator<T> : Validator<T> where T : class
 {

@@ -2,7 +2,7 @@ using System;
 using System.Text.RegularExpressions;
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators;
+namespace SchemaValidation.Library.Validators;
 
 public sealed class StringValidator : Validator<string>
 {
@@ -34,24 +34,37 @@ public sealed class StringValidator : Validator<string>
 
     public new StringValidator WithMessage(string message)
     {
-        ArgumentException.ThrowIfNullOrEmpty(message);
-        _patternErrorMessage = message;
         base.WithMessage(message);
+        _patternErrorMessage = message;
         return this;
     }
 
     public override ValidationResult<string> Validate(string value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value == null)
+        {
+            return CreateError(ValidationMessages.NullValue);
+        }
+
+        if (string.IsNullOrEmpty(value))
+        {
+            return CreateError(_customMessage ?? ValidationMessages.EmptyValue);
+        }
 
         if (_minLength.HasValue && value.Length < _minLength.Value)
-            return CreateError($"Minimum length is {_minLength.Value}");
+        {
+            return CreateError(_customMessage ?? ValidationMessages.MinLength(_minLength.Value));
+        }
 
         if (_maxLength.HasValue && value.Length > _maxLength.Value)
-            return CreateError($"Maximum length is {_maxLength.Value}");
+        {
+            return CreateError(_customMessage ?? ValidationMessages.MaxLength(_maxLength.Value));
+        }
 
-        if (_pattern is not null && !Regex.IsMatch(value, _pattern))
-            return CreateError(_patternErrorMessage ?? "Pattern validation failed");
+        if (_pattern != null && !Regex.IsMatch(value, _pattern))
+        {
+            return CreateError(_patternErrorMessage ?? ValidationMessages.InvalidPattern(_pattern));
+        }
 
         return ValidationResult.Success<string>();
     }

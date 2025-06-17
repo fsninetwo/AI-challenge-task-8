@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators;
+namespace SchemaValidation.Library.Validators;
 
 public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T : class
 {

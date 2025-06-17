@@ -3,8 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators
+namespace SchemaValidation.Library.Validators
 {
+    public sealed class ArrayValidator : Validator<object>
+    {
+        public override ValidationResult<object> Validate(object value)
+        {
+            if (value == null)
+                return CreateError("Value cannot be null");
+
+            if (!(value is System.Collections.IEnumerable))
+                return CreateError("Value must be an array or collection");
+
+            return ValidationResult.Success<object>();
+        }
+    }
+
     public sealed class ArrayValidator<T> : Validator<IEnumerable<T>>
     {
         private readonly Validator<T> _itemValidator;

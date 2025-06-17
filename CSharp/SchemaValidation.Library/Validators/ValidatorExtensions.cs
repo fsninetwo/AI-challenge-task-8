@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using SchemaValidation.Core;
 
-namespace SchemaValidation.Validators;
+namespace SchemaValidation.Library.Validators;
 
 public static class ValidatorExtensions
 {
@@ -27,112 +27,60 @@ public static class ValidatorExtensions
         throw new InvalidOperationException("Conditional validation is only supported for object validators.");
     }
 
-    public static Validator<object> Pattern(this Validator<object> validator, string pattern)
+    public static StringValidator MinLength(this StringValidator validator, int length)
     {
-        ArgumentException.ThrowIfNullOrEmpty(pattern);
-        if (validator is ValidatorWrapper<string, object, StringValidator> wrapper)
-        {
-            wrapper.UnderlyingValidator.Pattern(pattern);
-            return validator;
-        }
-        throw new InvalidOperationException("Pattern can only be used with string validators");
+        return validator.MinLength(length);
     }
 
-    public static Validator<object> MinLength(this Validator<object> validator, int length)
+    public static StringValidator MaxLength(this StringValidator validator, int length)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(length);
-        if (validator is ValidatorWrapper<string, object, StringValidator> stringWrapper)
-        {
-            stringWrapper.UnderlyingValidator.MinLength(length);
-            return validator;
-        }
-        if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayWrapper)
-        {
-            arrayWrapper.UnderlyingValidator.MinLength(length);
-            return validator;
-        }
-        throw new InvalidOperationException("MinLength can only be used with string or array validators");
+        return validator.MaxLength(length);
     }
 
-    public static Validator<object> MaxLength(this Validator<object> validator, int length)
+    public static StringValidator Pattern(this StringValidator validator, string pattern)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(length);
-        if (validator is ValidatorWrapper<string, object, StringValidator> stringWrapper)
-        {
-            stringWrapper.UnderlyingValidator.MaxLength(length);
-            return validator;
-        }
-        if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayWrapper)
-        {
-            arrayWrapper.UnderlyingValidator.MaxLength(length);
-            return validator;
-        }
-        throw new InvalidOperationException("MaxLength can only be used with string or array validators");
+        return validator.Pattern(pattern);
     }
 
-    public static Validator<object> Min(this Validator<object> validator, double value)
+    public static NumberValidator NonNegative(this NumberValidator validator)
     {
-        if (validator is ValidatorWrapper<double, object, NumberValidator> wrapper)
-        {
-            wrapper.UnderlyingValidator.Min(value);
-            return validator;
-        }
-        throw new InvalidOperationException("Min can only be used with number validators");
+        return validator.NonNegative();
     }
 
-    public static Validator<object> Max(this Validator<object> validator, double value)
+    public static NumberValidator Min(this NumberValidator validator, double value)
     {
-        if (validator is ValidatorWrapper<double, object, NumberValidator> wrapper)
-        {
-            wrapper.UnderlyingValidator.Max(value);
-            return validator;
-        }
-        throw new InvalidOperationException("Max can only be used with number validators");
+        return validator.Min(value);
     }
 
-    public static Validator<object> Integer(this Validator<object> validator)
+    public static NumberValidator Max(this NumberValidator validator, double value)
     {
-        if (validator is ValidatorWrapper<double, object, NumberValidator> wrapper)
-        {
-            wrapper.UnderlyingValidator.Integer();
-            return validator;
-        }
-        throw new InvalidOperationException("Integer can only be used with number validators");
+        return validator.Max(value);
     }
 
-    public static Validator<object> NonNegative(this Validator<object> validator)
+    public static ArrayValidator<T> MinLength<T>(this ArrayValidator<T> validator, int length)
     {
-        if (validator is ValidatorWrapper<double, object, NumberValidator> wrapper)
-        {
-            wrapper.UnderlyingValidator.NonNegative();
-            return validator;
-        }
-        throw new InvalidOperationException("NonNegative can only be used with number validators");
+        return validator.MinLength(length);
     }
 
-    public static Validator<object> WithMessage(this Validator<object> validator, string message)
+    public static ArrayValidator<T> MaxLength<T>(this ArrayValidator<T> validator, int length)
     {
-        ArgumentException.ThrowIfNullOrEmpty(message);
-        if (validator is ValidatorWrapper<string, object, StringValidator> stringWrapper)
-        {
-            stringWrapper.UnderlyingValidator.WithMessage(message);
-            return validator;
-        }
-        if (validator is ValidatorWrapper<double, object, NumberValidator> numberWrapper)
-        {
-            numberWrapper.UnderlyingValidator.WithMessage(message);
-            return validator;
-        }
-        if (validator is ValidatorWrapper<bool, object, BooleanValidator> boolWrapper)
-        {
-            boolWrapper.UnderlyingValidator.WithMessage(message);
-            return validator;
-        }
-        if (validator is ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>> arrayWrapper)
-        {
-            arrayWrapper.UnderlyingValidator.WithMessage(message);
-            return validator;
-        }
-        throw new InvalidOperationException("WithMessage can only be used with primitive type validators");
+        return validator.MaxLength(length);
+    }
+
+    public static ArrayValidator<T> Unique<T>(this ArrayValidator<T> validator)
+    {
+        return validator.Unique();
+    }
+
+    public static ArrayValidator<T> UniqueBy<T>(this ArrayValidator<T> validator, Func<T, T, bool> uniqueBy)
+    {
+        return validator.UniqueBy(uniqueBy);
+    }
+
+    public static TValidator WithMessage<TValidator>(this TValidator validator, string message)
+        where TValidator : Validator<object>
+    {
+        validator.WithMessage(message);
+        return validator;
     }
 } 

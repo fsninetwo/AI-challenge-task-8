@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using SchemaValidation.Validators;
+using SchemaValidation.Library.Validators;
 
 namespace SchemaValidation.Core;
 
