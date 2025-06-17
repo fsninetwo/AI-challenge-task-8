@@ -50,10 +50,10 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return this;
     }
 
-    public new ObjectArrayValidator<T> WithMessage(string message)
+    public override Validator<IEnumerable<T>> WithMessage(string message)
     {
-        base.WithMessage(message);
         _errorMessage = message;
+        _itemValidator.WithMessage(message);
         return this;
     }
 
@@ -61,7 +61,7 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
     {
         if (value == null)
         {
-            return CreateError("Value must be an array");
+            return CreateError(_errorMessage ?? "Value must be an array");
         }
 
         var items = value.ToList();
@@ -115,18 +115,25 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
             var item = items[i];
             if (item == null)
             {
-                errors.Add(new ValidationError($"Item at index {i} cannot be null", $"[{i}]"));
+                errors.Add(new ValidationError(_errorMessage ?? $"Item at index {i} cannot be null", $"[{i}]"));
                 continue;
             }
 
             var itemResult = _itemValidator.Validate(item);
             if (!itemResult.IsValid)
             {
-                foreach (var error in itemResult.Errors)
+                if (_errorMessage != null)
                 {
-                    errors.Add(new ValidationError(
-                        error.Message,
-                        $"[{i}].{error.PropertyName}".TrimEnd('.')));
+                    errors.Add(new ValidationError(_errorMessage, $"[{i}]"));
+                }
+                else
+                {
+                    foreach (var error in itemResult.Errors)
+                    {
+                        errors.Add(new ValidationError(
+                            error.Message,
+                            $"[{i}].{error.PropertyName}".TrimEnd('.')));
+                    }
                 }
             }
         }
@@ -138,6 +145,6 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
 
     private ValidationResult<IEnumerable<T>> CreateError(string message)
     {
-        return ValidationResult.Failure<IEnumerable<T>>(new List<ValidationError> { new ValidationError(_errorMessage ?? message) });
+        return ValidationResult.Failure<IEnumerable<T>>(new List<ValidationError> { new ValidationError(message) });
     }
 } 

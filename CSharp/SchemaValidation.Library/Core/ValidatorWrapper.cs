@@ -8,7 +8,6 @@ namespace SchemaValidation.Core
         where TValidator : Validator<TValue>
     {
         private readonly TValidator _validator;
-        private string? _customErrorMessage;
 
         public ValidatorWrapper(TValidator validator)
         {
@@ -21,7 +20,7 @@ namespace SchemaValidation.Core
         {
             if (value == null)
             {
-                return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
             }
 
             TValue typedValue;
@@ -39,7 +38,7 @@ namespace SchemaValidation.Core
                     }
                     else
                     {
-                        return CreateError(_customErrorMessage ?? "Value must be a string");
+                        return CreateError(ErrorMessage ?? "Value must be a string");
                     }
                 }
                 else if (typeof(TValue) == typeof(double))
@@ -52,12 +51,12 @@ namespace SchemaValidation.Core
                         }
                         catch
                         {
-                            return CreateError(_customErrorMessage ?? "Value must be a number");
+                            return CreateError(ErrorMessage ?? "Value must be a number");
                         }
                     }
                     else
                     {
-                        return CreateError(_customErrorMessage ?? "Value must be a number");
+                        return CreateError(ErrorMessage ?? "Value must be a number");
                     }
                 }
                 else if (typeof(TValue) == typeof(bool))
@@ -68,7 +67,7 @@ namespace SchemaValidation.Core
                     }
                     else
                     {
-                        return CreateError(_customErrorMessage ?? "Value must be a boolean");
+                        return CreateError(ErrorMessage ?? "Value must be a boolean");
                     }
                 }
                 else if (value is IConvertible)
@@ -79,26 +78,22 @@ namespace SchemaValidation.Core
                     }
                     catch
                     {
-                        return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                        return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
                     }
                 }
                 else
                 {
-                    return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                    return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
                 }
             }
             catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is NullReferenceException || ex is OverflowException)
             {
-                return CreateError(_customErrorMessage ?? $"Value must be a {typeof(TValue).Name.ToLowerInvariant()}");
+                return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
             }
 
             var result = _validator.Validate(typedValue);
             if (!result.IsValid)
             {
-                if (_customErrorMessage != null)
-                {
-                    return ValidationResult.Failure<TObject>(new[] { new ValidationError(_customErrorMessage) });
-                }
                 return ValidationResult.Failure<TObject>(result.Errors);
             }
 
@@ -107,14 +102,26 @@ namespace SchemaValidation.Core
 
         public override Validator<TObject> WithMessage(string message)
         {
-            _customErrorMessage = message;
-            _validator.WithMessage(message);
+            base.WithMessage(message);
+            if (_validator != null)
+            {
+                _validator.WithMessage(message);
+            }
             return this;
         }
 
         private ValidationResult<TObject> CreateError(string message)
         {
             return ValidationResult.Failure<TObject>(new[] { new ValidationError(message) });
+        }
+
+        private string GetDefaultErrorMessage(Type type)
+        {
+            if (type == typeof(double) || type.Name.ToLowerInvariant() == "double")
+            {
+                return "Value must be a number";
+            }
+            return $"Value must be a {type.Name.ToLowerInvariant()}";
         }
     }
 } 

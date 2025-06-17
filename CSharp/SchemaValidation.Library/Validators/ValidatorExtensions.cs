@@ -48,21 +48,20 @@ public static class ValidatorExtensions
     public static NumberValidator NonNegative(this NumberValidator validator)
     {
         ArgumentNullException.ThrowIfNull(validator);
-        validator.SetNonNegative();
-        return validator;
+        return validator.NonNegative();
     }
 
     public static NumberValidator Min(this NumberValidator validator, double value)
     {
         ArgumentNullException.ThrowIfNull(validator);
-        validator.SetMin(value);
+        validator.Min(value);
         return validator;
     }
 
     public static NumberValidator Max(this NumberValidator validator, double value)
     {
         ArgumentNullException.ThrowIfNull(validator);
-        validator.SetMax(value);
+        validator.Max(value);
         return validator;
     }
 
@@ -147,7 +146,7 @@ public static class ValidatorExtensions
     {
         if (validator is ValidatorWrapper<double, object, NumberValidator> numberValidator)
         {
-            numberValidator.UnderlyingValidator.SetNonNegative();
+            numberValidator.UnderlyingValidator.NonNegative();
             return validator;
         }
         throw new InvalidOperationException("NonNegative is only supported for number validators.");

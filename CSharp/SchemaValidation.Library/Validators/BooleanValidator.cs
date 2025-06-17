@@ -9,8 +9,6 @@ namespace SchemaValidation.Library.Validators;
 /// </summary>
 public sealed class BooleanValidator : Validator<bool>
 {
-    private string? _customErrorMessage;
-
     public override ValidationResult<bool> Validate(bool value)
     {
         // Boolean values are inherently valid once type checking passes
@@ -19,12 +17,12 @@ public sealed class BooleanValidator : Validator<bool>
 
     public override Validator<bool> WithMessage(string message)
     {
-        _customErrorMessage = message;
+        base.WithMessage(message);
         return this;
     }
 
     public string GetErrorMessage(string defaultMessage)
     {
-        return _customErrorMessage ?? defaultMessage;
+        return ErrorMessage ?? defaultMessage;
     }
-} 
+}
