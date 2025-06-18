@@ -5,6 +5,11 @@ using SchemaValidation.Core;
 
 namespace SchemaValidation.Library.Validators;
 
+/// <summary>
+/// Validator for arrays of objects that provides object-specific array validation rules.
+/// Supports validation of array length, object schema validation, and uniqueness constraints.
+/// </summary>
+/// <typeparam name="T">The type of objects in the array</typeparam>
 public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T : class
 {
     private readonly ObjectValidator<T> _itemValidator;
@@ -15,12 +20,23 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
     private string? _uniquePropertyName;
     private string? _errorMessage;
 
+    /// <summary>
+    /// Initializes a new instance of the ObjectArrayValidator class.
+    /// </summary>
+    /// <param name="schema">Dictionary defining the validation rules for object properties</param>
+    /// <exception cref="ArgumentNullException">Thrown when schema is null</exception>
     public ObjectArrayValidator(Dictionary<string, Validator<object>> schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
         _itemValidator = Schema.Object<T>(schema);
     }
 
+    /// <summary>
+    /// Sets the minimum length requirement for the array.
+    /// </summary>
+    /// <param name="length">The minimum number of items required</param>
+    /// <returns>The validator instance for method chaining</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when length is negative</exception>
     public ObjectArrayValidator<T> MinLength(int length)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(length);
@@ -28,6 +44,12 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return this;
     }
 
+    /// <summary>
+    /// Sets the maximum length allowed for the array.
+    /// </summary>
+    /// <param name="length">The maximum number of items allowed</param>
+    /// <returns>The validator instance for method chaining</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when length is negative</exception>
     public ObjectArrayValidator<T> MaxLength(int length)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(length);
@@ -35,12 +57,25 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return this;
     }
 
+    /// <summary>
+    /// Configures the validator to require unique objects in the array.
+    /// Objects are compared using their default equality comparison.
+    /// </summary>
+    /// <returns>The validator instance for method chaining</returns>
     public ObjectArrayValidator<T> Unique()
     {
         _uniqueItems = true;
         return this;
     }
 
+    /// <summary>
+    /// Configures the validator to require uniqueness based on a specific property.
+    /// </summary>
+    /// <param name="propertyName">Name of the property to check for uniqueness</param>
+    /// <param name="propertySelector">Function to select the property to check</param>
+    /// <returns>The validator instance for method chaining</returns>
+    /// <exception cref="ArgumentException">Thrown when propertyName is null or empty</exception>
+    /// <exception cref="ArgumentNullException">Thrown when propertySelector is null</exception>
     public ObjectArrayValidator<T> UniqueBy(string propertyName, Func<T, object?> propertySelector)
     {
         ArgumentException.ThrowIfNullOrEmpty(propertyName);
@@ -50,6 +85,11 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return this;
     }
 
+    /// <summary>
+    /// Sets a custom error message for validation failures.
+    /// </summary>
+    /// <param name="message">The custom error message</param>
+    /// <returns>The validator instance for method chaining</returns>
     public override Validator<IEnumerable<T>> WithMessage(string message)
     {
         _errorMessage = message;
@@ -57,6 +97,11 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
         return this;
     }
 
+    /// <summary>
+    /// Validates an array of objects against all configured rules.
+    /// </summary>
+    /// <param name="value">The array to validate</param>
+    /// <returns>A ValidationResult indicating success or failure with error messages</returns>
     public override ValidationResult<IEnumerable<T>> Validate(IEnumerable<T> value)
     {
         if (value == null)
@@ -92,55 +137,33 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
             }
         }
 
-        if (_uniqueByProperty != null && _uniquePropertyName != null)
+        if (_uniqueByProperty != null)
         {
             var duplicatesByProperty = items
                 .Where(x => x != null)
-                .Select((item, index) => new { Item = item, Index = index, Value = _uniqueByProperty(item) })
-                .GroupBy(x => x.Value)
+                .GroupBy(_uniqueByProperty)
                 .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
                 .ToList();
 
-            foreach (var group in duplicatesByProperty)
+            if (duplicatesByProperty.Any())
             {
-                var indices = group.Select(x => x.Index).ToList();
-                errors.Add(new ValidationError(
-                    _errorMessage ?? $"Duplicate value '{group.Key}' for property '{_uniquePropertyName}' at indices: {string.Join(", ", indices)}",
-                    _uniquePropertyName));
+                errors.Add(new ValidationError(_errorMessage ?? $"Duplicate value found for property {_uniquePropertyName}"));
             }
         }
 
-        for (var i = 0; i < items.Count; i++)
+        foreach (var item in items.Where(x => x != null))
         {
-            var item = items[i];
-            if (item == null)
-            {
-                errors.Add(new ValidationError(_errorMessage ?? $"Item at index {i} cannot be null", $"[{i}]"));
-                continue;
-            }
-
             var itemResult = _itemValidator.Validate(item);
             if (!itemResult.IsValid)
             {
-                if (_errorMessage != null)
-                {
-                    errors.Add(new ValidationError(_errorMessage, $"[{i}]"));
-                }
-                else
-                {
-                    foreach (var error in itemResult.Errors)
-                    {
-                        errors.Add(new ValidationError(
-                            error.Message,
-                            $"[{i}].{error.PropertyName}".TrimEnd('.')));
-                    }
-                }
+                errors.AddRange(itemResult.Errors);
             }
         }
 
         return errors.Any()
-            ? ValidationResult.Failure<IEnumerable<T>>(errors)
-            : ValidationResult.Success<IEnumerable<T>>();
+            ? new ValidationResult<IEnumerable<T>>(errors)
+            : new ValidationResult<IEnumerable<T>>();
     }
 
     private ValidationResult<IEnumerable<T>> CreateError(string message)

@@ -5,8 +5,35 @@ using SchemaValidation.Library.Validators;
 
 namespace SchemaValidation.Library.Schemas;
 
+/// <summary>
+/// Provides the validation schema configuration for the User model.
+/// </summary>
+/// <remarks>
+/// This static class defines the validation rules for all User properties including:
+/// - Basic validation (required fields, length constraints)
+/// - Format validation (email, phone number patterns)
+/// - Numeric range validation (age)
+/// - Complex validation (address validation, USA phone number rules)
+/// </remarks>
 public static class UserSchema
 {
+    /// <summary>
+    /// Creates a configured ObjectValidator for User objects.
+    /// </summary>
+    /// <returns>
+    /// An ObjectValidator instance with predefined validation rules for User objects.
+    /// </returns>
+    /// <remarks>
+    /// The validator includes the following rules:
+    /// - Id: Required, non-empty string
+    /// - Name: Minimum 2 characters
+    /// - Email: Valid email format
+    /// - Age: Between 0 and 120
+    /// - IsActive: Boolean
+    /// - PhoneNumber: Optional, international format (+X-XXXXXXXXXX)
+    /// - Tags: Non-empty array of strings
+    /// - Address: Optional, validated using AddressSchema
+    /// </remarks>
     public static ObjectValidator<User> Create()
     {
         var schema = new Dictionary<string, Validator<object>>
