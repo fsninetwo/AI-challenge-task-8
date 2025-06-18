@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SchemaValidation.Core;
 using SchemaValidation.Library.Models;
 using SchemaValidation.Library.Validators;
+using System;
 using System.Collections.Generic;
 
 class Program
@@ -81,6 +82,60 @@ class Program
         };
         var invalidResult = validator.Validate(invalidUser);
         PrintValidationResult(invalidResult);
+
+        // Demo 4: Tag Array Validation with Uniqueness
+        Console.WriteLine("\nDemo 4: Tag Array Validation (unique, min/max length)");
+        var tagArrayValidator = Schema.Array<string>(Schema.String());
+        var underlyingTagArrayValidator = ((SchemaValidation.Core.ValidatorWrapper<IEnumerable<string>, object, ArrayValidator<string>>)tagArrayValidator).UnderlyingValidator;
+        underlyingTagArrayValidator.MinLength(2);
+        underlyingTagArrayValidator.MaxLength(5);
+        underlyingTagArrayValidator.Unique();
+
+        var tagsValid = new[] { "dev", "qa", "ops" };
+        var tagsInvalid = new[] { "dev", "dev" }; // duplicate and below min length
+
+        Console.WriteLine(" Valid tag array:");
+        PrintValidationResult(tagArrayValidator.Validate(tagsValid));
+
+        Console.WriteLine(" Invalid tag array:");
+        PrintValidationResult(tagArrayValidator.Validate(tagsInvalid));
+
+        // Demo 5: Date Validation (last 30 days)
+        Console.WriteLine("\nDemo 5: Date Validation (within last 30 days)");
+        var dateValidator = Schema.Date();
+        var underlyingDateValidator = ((SchemaValidation.Core.ValidatorWrapper<DateTime, object, DateValidator>)dateValidator).UnderlyingValidator;
+        underlyingDateValidator.Min(DateTime.Today.AddDays(-30));
+        underlyingDateValidator.Max(DateTime.Today);
+
+        var validDate = DateTime.Today.AddDays(-10);
+        var invalidDate = DateTime.Today.AddDays(5);
+
+        Console.WriteLine($" Valid date ({validDate:d}):");
+        PrintValidationResult(dateValidator.Validate(validDate));
+
+        Console.WriteLine($" Invalid date ({invalidDate:d}):");
+        PrintValidationResult(dateValidator.Validate(invalidDate));
+
+        // Demo 6: Number Validation (integer 1-5)
+        Console.WriteLine("\nDemo 6: Number Validation (integer 1-5)");
+        var numberValidator = Schema.Number();
+        var underlyingNumberValidator = ((SchemaValidation.Core.ValidatorWrapper<double, object, NumberValidator>)numberValidator).UnderlyingValidator;
+        underlyingNumberValidator.SetMin(1);
+        underlyingNumberValidator.SetMax(5);
+        underlyingNumberValidator.SetInteger();
+
+        var validNumber = 3;
+        var invalidNumber = 4.5; // not integer
+        var outOfRangeNumber = 10;
+
+        Console.WriteLine($" Valid number ({validNumber}):");
+        PrintValidationResult(numberValidator.Validate(validNumber));
+
+        Console.WriteLine($" Invalid number ({invalidNumber} – not integer):");
+        PrintValidationResult(numberValidator.Validate(invalidNumber));
+
+        Console.WriteLine($" Invalid number ({outOfRangeNumber} – out of range):");
+        PrintValidationResult(numberValidator.Validate(outOfRangeNumber));
     }
 
     private static void ConfigureServices(IServiceCollection services)
