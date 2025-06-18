@@ -295,4 +295,74 @@ public class ArrayValidatorTests : ValidationTestBase
         Assert.False(result.IsValid);
         Assert.Contains("Item at index 1", result.Errors[0].Message);
     }
+
+    [Fact]
+    public void NonGenericArrayValidator_WithValidItems_ShouldPass()
+    {
+        // Arrange
+        var arrayValidator = new ArrayValidator();
+        arrayValidator.SetMinLength(2);
+        arrayValidator.SetMaxLength(4);
+        arrayValidator.SetItems(Schema.String());
+
+        IEnumerable<object> value = new object[] { "one", "two", "three" };
+
+        // Act
+        var result = arrayValidator.Validate(value);
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void NonGenericArrayValidator_WithNullItem_ShouldFail()
+    {
+        // Arrange
+        var arrayValidator = new ArrayValidator();
+        arrayValidator.SetItems(Schema.String());
+
+        IEnumerable<object?> value = new object?[] { "one", null };
+
+        // Act
+        var result = arrayValidator.Validate(value!);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains("cannot be null", result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void NonGenericArrayValidator_ItemValidatorFailure_ShouldFail()
+    {
+        var itemValidator = Schema.String().Pattern("^\\d+$");
+        var arrayValidator = new ArrayValidator();
+        arrayValidator.SetItems(itemValidator);
+        IEnumerable<object> value = new object[] { "123", "abc" };
+        var result = arrayValidator.Validate(value);
+        Assert.False(result.IsValid);
+        Assert.Contains("Item at index 1", result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void NonGenericArrayValidator_MinLengthViolation_ShouldFail()
+    {
+        var arrayValidator = new ArrayValidator();
+        arrayValidator.SetMinLength(3);
+        IEnumerable<object> value = new object[] { "a", "b" };
+        var result = arrayValidator.Validate(value);
+        Assert.False(result.IsValid);
+        Assert.Contains("at least", result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void NonGenericArrayValidator_MaxLengthViolation_ShouldFail()
+    {
+        var arrayValidator = new ArrayValidator();
+        arrayValidator.SetMaxLength(2);
+        IEnumerable<object> value = new object[] { "a", "b", "c" };
+        var result = arrayValidator.Validate(value);
+        Assert.False(result.IsValid);
+        Assert.Contains("at most", result.Errors[0].Message);
+    }
 } 

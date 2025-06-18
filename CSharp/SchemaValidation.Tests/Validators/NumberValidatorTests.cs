@@ -254,4 +254,31 @@ public class NumberValidatorTests : ValidationTestBase
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(User.Age));
     }
+
+    [Fact]
+    public void OperatorOr_PicksExtremeBounds()
+    {
+        var v1 = new NumberValidator().Min(0).Max(5);
+        var v2 = new NumberValidator().Min(-10).Max(10);
+
+        var combined = v1 | v2;
+
+        Assert.Equal(-10, combined.MinValue);
+        Assert.Equal(10, combined.MaxValue);
+        // integer flag should be true only if both had integer
+        Assert.False(combined.IsInteger);
+    }
+
+    [Fact]
+    public void OperatorAnd_ComputesIntersection()
+    {
+        var v1 = new NumberValidator().Min(0).Max(10);
+        var v2 = new NumberValidator().Min(5).Max(8).Integer();
+
+        var combined = v1 & v2;
+
+        Assert.Equal(5, combined.MinValue);
+        Assert.Equal(8, combined.MaxValue);
+        Assert.True(combined.IsInteger); // OR logic
+    }
 } 
