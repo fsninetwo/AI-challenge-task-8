@@ -43,6 +43,11 @@ namespace SchemaValidation.Core
                 }
                 else if (typeof(TValue) == typeof(double))
                 {
+                    if (value is bool || value is string)
+                    {
+                        return CreateError(ErrorMessage ?? "Value must be a number");
+                    }
+
                     if (value is IConvertible)
                     {
                         try

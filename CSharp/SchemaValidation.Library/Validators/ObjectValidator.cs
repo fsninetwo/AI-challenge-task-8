@@ -87,6 +87,21 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
             }
 
             var propertyValue = propertyInfo.GetValue(value);
+
+            // If the property is optional, allow null, empty, or whitespace strings without further validation.
+            if (!isRequired)
+            {
+                if (propertyValue == null)
+                {
+                    continue; // optional and not provided
+                }
+
+                if (propertyValue is string s && string.IsNullOrWhiteSpace(s))
+                {
+                    continue; // optional and logically empty
+                }
+            }
+
             if (propertyValue == null)
             {
                 if (isRequired)

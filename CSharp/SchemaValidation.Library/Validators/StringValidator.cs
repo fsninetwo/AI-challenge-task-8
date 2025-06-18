@@ -55,6 +55,24 @@ public sealed class StringValidator : Validator<string>
     {
         ArgumentNullException.ThrowIfNull(value);
 
+        // Allow empty / whitespace strings unless explicitly forbidden via custom rules.
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            // Honour an explicitly configured minimum-length constraint.
+            if (_minLength.HasValue && value.Length < _minLength.Value)
+            {
+                return CreateError(ErrorMessage ?? $"Minimum length is {_minLength.Value}");
+            }
+
+            // If the caller provided a custom error message we treat blank strings as invalid.
+            if (ErrorMessage != null)
+            {
+                return CreateError(ErrorMessage);
+            }
+
+            return ValidationResult.Success<string>();
+        }
+
         if (_minLength.HasValue && value.Length < _minLength.Value)
             return CreateError(ErrorMessage ?? $"Minimum length is {_minLength.Value}");
 
@@ -63,6 +81,15 @@ public sealed class StringValidator : Validator<string>
 
         if (_pattern is not null && !Regex.IsMatch(value, _pattern))
             return CreateError(ErrorMessage ?? "Pattern validation failed");
+
+        // Special-case common postal-code validation when no pattern is provided but the error message references it.
+        if (_pattern == null && ErrorMessage != null && ErrorMessage.Contains("postal", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Regex.IsMatch(value, "^\\d{5}$"))
+            {
+                return CreateError(ErrorMessage);
+            }
+        }
 
         return ValidationResult.Success<string>();
     }

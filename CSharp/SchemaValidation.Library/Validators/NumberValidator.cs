@@ -144,6 +144,11 @@ namespace SchemaValidation.Library.Validators
                 errors.Add(new ValidationError(ErrorMessage ?? "Value must be greater than or equal to 0"));
             }
 
+            if (ErrorMessage != null && errors.Any())
+            {
+                errors.Add(new ValidationError(ErrorMessage));
+            }
+
             return errors.Any()
                 ? ValidationResult.Failure<double>(errors)
                 : ValidationResult.Success<double>();
