@@ -253,4 +253,46 @@ public class ArrayValidatorTests : ValidationTestBase
         // Assert
         Assert.True(result.IsValid);
     }
+
+    [Fact]
+    public void NestedArrayValidation_WithValidData_ShouldPass()
+    {
+        // Arrange
+        var innerValidator = Schema.Array<string>(Schema.String());
+        var nestedValidator = Schema.Array<IEnumerable<string>>(innerValidator);
+
+        var data = new[]
+        {
+            new[] { "a", "b" },
+            new[] { "c", "d" }
+        };
+
+        // Act
+        var result = nestedValidator.Validate(data);
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void NestedArrayValidation_WithInvalidInnerItem_ShouldFail()
+    {
+        // Arrange
+        var innerValidator = Schema.Array<string>(Schema.String());
+        var nestedValidator = Schema.Array<IEnumerable<string>>(innerValidator);
+
+        var data = new[]
+        {
+            new[] { "a", "b" },
+            new string?[] { "c", null }
+        };
+
+        // Act
+        var result = nestedValidator.Validate(data);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains("Item at index 1", result.Errors[0].Message);
+    }
 } 
