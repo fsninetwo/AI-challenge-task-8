@@ -142,6 +142,12 @@ public static class ValidatorExtensions
         throw new InvalidOperationException("Pattern is only supported for string validators.");
     }
 
+    /// <summary>
+    /// Configures a number validator wrapped as <see cref="Validator{object}"/> to require non-negative values.
+    /// </summary>
+    /// <param name="validator">The number validator wrapper to extend.</param>
+    /// <returns>The same validator instance for fluent chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the underlying validator is not a number validator.</exception>
     public static Validator<object> NonNegative(this Validator<object> validator)
     {
         if (validator is ValidatorWrapper<double, object, NumberValidator> numValidator)
