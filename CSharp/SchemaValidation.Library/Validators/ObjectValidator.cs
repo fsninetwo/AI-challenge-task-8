@@ -87,21 +87,6 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
             }
 
             var propertyValue = propertyInfo.GetValue(value);
-
-            // If the property is optional, allow null, empty, or whitespace strings without further validation.
-            if (!isRequired)
-            {
-                if (propertyValue == null)
-                {
-                    continue; // optional and not provided
-                }
-
-                if (propertyValue is string s && string.IsNullOrWhiteSpace(s))
-                {
-                    continue; // optional and logically empty
-                }
-            }
-
             if (propertyValue == null)
             {
                 if (isRequired)
@@ -135,17 +120,16 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
         {
             foreach (var ((propertyName, property1Name, property2Name), (rule, message)) in _dependencyRules)
             {
-                if (!propertyDict.TryGetValue(property1Name, out var property1Info) ||
-                    !propertyDict.TryGetValue(property2Name, out var property2Info))
+                var property1Value = GetNestedPropertyValue(value, property1Name);
+                var property2Value = GetNestedPropertyValue(value, property2Name);
+
+                if (property1Value == null || property2Value == null)
                 {
                     errors.Add(new ValidationError(
                         ErrorMessage ?? $"Property '{propertyName}' depends on missing properties '{property1Name}' or '{property2Name}'",
                         propertyName));
                     continue;
                 }
-
-                var property1Value = property1Info.GetValue(value);
-                var property2Value = property2Info.GetValue(value);
 
                 if (!rule(value, property1Value, property2Value))
                 {
@@ -157,6 +141,28 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
         return errors.Any()
             ? ValidationResult.Failure<T>(errors)
             : ValidationResult.Success<T>();
+    }
+
+    // Helper to resolve nested property paths separated by '.'
+    private static object? GetNestedPropertyValue(object? obj, string propertyPath)
+    {
+        if (obj == null || string.IsNullOrEmpty(propertyPath)) return null;
+
+        var segments = propertyPath.Split('.');
+        var currentObj = obj;
+
+        foreach (var segment in segments)
+        {
+            if (currentObj == null) return null;
+
+            var type = currentObj.GetType();
+            var propInfo = type.GetProperty(segment, BindingFlags.Public | BindingFlags.Instance);
+            if (propInfo == null) return null;
+
+            currentObj = propInfo.GetValue(currentObj);
+        }
+
+        return currentObj;
     }
 
     public override Validator<T> WithMessage(string message)

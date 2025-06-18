@@ -77,6 +77,10 @@ namespace SchemaValidation.Library.Validators
         public void SetMin(double value)
         {
             _min = value;
+            if (value < 0)
+            {
+                _nonNegative = false;
+            }
         }
 
         public void SetMax(double value)
@@ -93,6 +97,10 @@ namespace SchemaValidation.Library.Validators
         {
             _min = min;
             _max = max;
+            if (min < 0)
+            {
+                _nonNegative = false;
+            }
         }
 
         public void SetErrorMessage(string message)
