@@ -4,40 +4,18 @@ using SchemaValidation.Core;
 
 namespace SchemaValidation.Core
 {
-    /// <summary>
-    /// Wraps a strongly-typed validator to provide type conversion and validation capabilities.
-    /// Enables validation of values that may need type conversion before validation.
-    /// </summary>
-    /// <typeparam name="TValue">The type that the underlying validator validates</typeparam>
-    /// <typeparam name="TObject">The type of object being validated (usually object)</typeparam>
-    /// <typeparam name="TValidator">The type of the underlying validator</typeparam>
     public sealed class ValidatorWrapper<TValue, TObject, TValidator> : Validator<TObject>
         where TValidator : Validator<TValue>
     {
         private readonly TValidator _validator;
 
-        /// <summary>
-        /// Initializes a new instance of the ValidatorWrapper class.
-        /// </summary>
-        /// <param name="validator">The underlying validator to wrap</param>
-        /// <exception cref="ArgumentNullException">Thrown when validator is null</exception>
         public ValidatorWrapper(TValidator validator)
         {
             _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         }
 
-        /// <summary>
-        /// Gets the underlying validator instance.
-        /// Useful for accessing specific validation capabilities of the wrapped validator.
-        /// </summary>
         public TValidator UnderlyingValidator => _validator;
 
-        /// <summary>
-        /// Validates a value, performing type conversion if necessary.
-        /// Handles special cases for string and numeric conversions.
-        /// </summary>
-        /// <param name="value">The value to validate</param>
-        /// <returns>A ValidationResult containing the validation outcome</returns>
         public override ValidationResult<TObject> Validate(TObject value)
         {
             if (value == null)
@@ -69,62 +47,66 @@ namespace SchemaValidation.Core
                     {
                         return CreateError(ErrorMessage ?? "Value must be a number");
                     }
-                    try
+
+                    if (value is IConvertible)
                     {
-                        typedValue = (TValue)(object)Convert.ToDouble(value);
+                        try
+                        {
+                            typedValue = (TValue)(object)Convert.ToDouble(value);
+                        }
+                        catch
+                        {
+                            return CreateError(ErrorMessage ?? "Value must be a number");
+                        }
                     }
-                    catch (Exception)
+                    else
                     {
-                        return CreateError(ErrorMessage ?? "Value must be a valid number");
+                        return CreateError(ErrorMessage ?? "Value must be a number");
                     }
                 }
                 else if (typeof(TValue) == typeof(bool))
                 {
-                    if (value is string || !(value is bool))
+                    if (value is bool b)
                     {
-                        return CreateError(ErrorMessage ?? "Value must be a boolean");
-                    }
-                    typedValue = (TValue)value;
-                }
-                else if (typeof(TValue) == typeof(DateTime))
-                {
-                    if (value is string dateStr)
-                    {
-                        if (DateTime.TryParse(dateStr, out var date))
-                        {
-                            typedValue = (TValue)(object)date;
-                        }
-                        else
-                        {
-                            return CreateError(ErrorMessage ?? "Value must be a valid date");
-                        }
-                    }
-                    else if (value is DateTime)
-                    {
-                        typedValue = (TValue)value;
+                        typedValue = (TValue)(object)b;
                     }
                     else
                     {
-                        return CreateError(ErrorMessage ?? "Value must be a date");
+                        return CreateError(ErrorMessage ?? "Value must be a boolean");
                     }
+                }
+                else if (value is IConvertible)
+                {
+                    try
+                    {
+                        typedValue = (TValue)Convert.ChangeType(value, typeof(TValue));
+                    }
+                    catch
+                    {
+                        return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
+                    }
+                }
+                else if (value is DateTime)
+                {
+                    typedValue = (TValue)(object)value;
                 }
                 else
                 {
-                    return CreateError(ErrorMessage ?? $"Cannot convert value to {typeof(TValue).Name}");
+                    return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
                 }
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is NullReferenceException || ex is OverflowException)
             {
-                return CreateError(ErrorMessage ?? $"Invalid {typeof(TValue).Name} value");
+                return CreateError(ErrorMessage ?? GetDefaultErrorMessage(typeof(TValue)));
             }
 
             var result = _validator.Validate(typedValue);
             if (!result.IsValid)
             {
-                return new ValidationResult<TObject>(result.Errors);
+                return ValidationResult.Failure<TObject>(result.Errors);
             }
 
-            return new ValidationResult<TObject>();
+            return ValidationResult.Success<TObject>();
         }
 
         public override Validator<TObject> WithMessage(string message)

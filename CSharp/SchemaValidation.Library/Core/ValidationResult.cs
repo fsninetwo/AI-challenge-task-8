@@ -32,11 +32,21 @@ public sealed class ValidationResult<T>
     /// This constructor is private to enforce the use of factory methods
     /// Success() and Failure() for creating ValidationResult instances.
     /// </remarks>
-    private ValidationResult(bool isValid, IReadOnlyList<ValidationError>? errors = null)
+    public ValidationResult(bool isValid, IReadOnlyList<ValidationError>? errors = null)
     {
         IsValid = isValid;
         Errors = errors ?? new List<ValidationError>();
     }
+
+    /// <summary>
+    /// Initializes a successful ValidationResult with no errors.
+    /// </summary>
+    public ValidationResult() : this(true, null) { }
+
+    /// <summary>
+    /// Initializes a failed ValidationResult using the provided error collection.
+    /// </summary>
+    public ValidationResult(IReadOnlyList<ValidationError> errors) : this(errors == null || errors.Count == 0, errors) { }
 
     /// <summary>
     /// Gets whether the validation was successful.
@@ -117,4 +127,6 @@ public static class ValidationResult
 
     public static ValidationResult<T> Failure<T>(IReadOnlyList<ValidationError> errors)
         => ValidationResult<T>.Failure(errors);
-} 
+}
+
+// TODO: temporary comment 
