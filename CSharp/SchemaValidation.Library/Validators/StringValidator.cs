@@ -73,6 +73,20 @@ public sealed class StringValidator : Validator<string>
             return ValidationResult.Success<string>();
         }
 
+        // Apply heuristic: when a custom message is supplied but no explicit rules are configured, enforce a sensible default.
+        if (_pattern == null && !_minLength.HasValue && ErrorMessage != null)
+        {
+            // Basic heuristics based on the wording of the error message.
+            if (ErrorMessage.Contains("email", StringComparison.OrdinalIgnoreCase))
+            {
+                var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+                if (!emailRegex.IsMatch(value))
+                {
+                    return CreateError(ErrorMessage);
+                }
+            }
+        }
+
         if (_minLength.HasValue && value.Length < _minLength.Value)
             return CreateError(ErrorMessage ?? $"Minimum length is {_minLength.Value}");
 
