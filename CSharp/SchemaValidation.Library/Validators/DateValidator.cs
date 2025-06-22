@@ -44,12 +44,12 @@ namespace SchemaValidation.Library.Validators
         {
             if (_minDate.HasValue && value < _minDate.Value)
             {
-                return CreateError($"Date must be greater than or equal to {_minDate.Value:d}");
+                return CreateError(ErrorMessage ?? $"Date must be greater than or equal to {_minDate.Value:d}");
             }
 
             if (_maxDate.HasValue && value > _maxDate.Value)
             {
-                return CreateError($"Date must be less than or equal to {_maxDate.Value:d}");
+                return CreateError(ErrorMessage ?? $"Date must be less than or equal to {_maxDate.Value:d}");
             }
 
             return ValidationResult.Success<DateTime>();

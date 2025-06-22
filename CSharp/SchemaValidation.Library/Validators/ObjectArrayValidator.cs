@@ -114,12 +114,12 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
 
         if (_minLength.HasValue && items.Count < _minLength.Value)
         {
-            errors.Add(new ValidationError(_errorMessage ?? $"Array must have at least {_minLength.Value} items"));
+            errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Array must have at least {_minLength.Value} items"));
         }
 
         if (_maxLength.HasValue && items.Count > _maxLength.Value)
         {
-            errors.Add(new ValidationError(_errorMessage ?? $"Array must have at most {_maxLength.Value} items"));
+            errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Array must have at most {_maxLength.Value} items"));
         }
 
         if (_uniqueItems)
@@ -148,16 +148,23 @@ public sealed class ObjectArrayValidator<T> : Validator<IEnumerable<T>> where T 
 
             if (duplicatesByProperty.Any())
             {
-                errors.Add(new ValidationError(_errorMessage ?? $"Duplicate value found for property {_uniquePropertyName}"));
+                errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Duplicate value found for property {_uniquePropertyName}", _uniquePropertyName));
             }
         }
 
-        foreach (var item in items.Where(x => x != null))
+        for (var idx = 0; idx < items.Count; idx++)
         {
+            var item = items[idx];
+            if (item == null)
+            {
+                errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Item at index {idx} cannot be null"));
+                continue;
+            }
+
             var itemResult = _itemValidator.Validate(item);
             if (!itemResult.IsValid)
             {
-                errors.AddRange(itemResult.Errors);
+                errors.AddRange(itemResult.Errors.Select(e => new ValidationError(e.Message, e.PropertyName)));
             }
         }
 

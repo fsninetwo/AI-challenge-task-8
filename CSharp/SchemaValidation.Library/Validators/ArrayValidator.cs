@@ -19,6 +19,7 @@ namespace SchemaValidation.Library.Validators
         private Func<T, object?>? _uniqueByProperty;
         private string? _uniquePropertyName;
         private string? _errorMessage;
+        private Func<T, T, bool>? _customComparer;
 
         /// <summary>
         /// Initializes a new instance of the ArrayValidator class.
@@ -61,6 +62,17 @@ namespace SchemaValidation.Library.Validators
         }
 
         /// <summary>
+        /// Configures the validator to require unique items in the array.
+        /// Added for test compatibility (alias for <see cref="SetUnique"/>).
+        /// </summary>
+        /// <returns>The current validator instance.</returns>
+        public ArrayValidator<T> Unique()
+        {
+            SetUnique();
+            return this;
+        }
+
+        /// <summary>
         /// Configures the validator to require uniqueness based on a specific property.
         /// </summary>
         /// <typeparam name="TProperty">The type of the property to check for uniqueness</typeparam>
@@ -78,6 +90,20 @@ namespace SchemaValidation.Library.Validators
         }
 
         /// <summary>
+        /// Configures the validator to define uniqueness using a custom comparer.
+        /// Added as an alias for <see cref="SetUniqueBy(System.Func{T,T,bool})"/> to satisfy unit tests.
+        /// </summary>
+        /// <param name="comparer">Comparison delegate returning true when two items should be considered equal.</param>
+        /// <returns>The current validator instance.</returns>
+        public ArrayValidator<T> UniqueBy(Func<T, T, bool> comparer)
+        {
+            ArgumentNullException.ThrowIfNull(comparer);
+            _customComparer = comparer;
+            _uniqueItems = true;
+            return this;
+        }
+
+        /// <summary>
         /// Configures the validator to use a custom comparison for uniqueness checking.
         /// </summary>
         /// <param name="comparer">The comparison function to use</param>
@@ -86,6 +112,7 @@ namespace SchemaValidation.Library.Validators
         {
             ArgumentNullException.ThrowIfNull(comparer);
             _uniqueItems = true;
+            _customComparer = comparer;
         }
 
         /// <summary>
@@ -105,26 +132,47 @@ namespace SchemaValidation.Library.Validators
 
             if (_minLength.HasValue && items.Count < _minLength.Value)
             {
-                errors.Add(new ValidationError(_errorMessage ?? $"Array must have at least {_minLength.Value} items"));
+                errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Array must have at least {_minLength.Value} items"));
             }
 
             if (_maxLength.HasValue && items.Count > _maxLength.Value)
             {
-                errors.Add(new ValidationError(_errorMessage ?? $"Array must have at most {_maxLength.Value} items"));
+                errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Array must have at most {_maxLength.Value} items"));
             }
 
             if (_uniqueItems)
             {
-                var duplicates = items
-                    .Where(x => x != null)
-                    .GroupBy(x => x)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => g.Key)
-                    .ToList();
-
-                if (duplicates.Any())
+                if (_customComparer != null)
                 {
-                    errors.Add(new ValidationError(_errorMessage ?? "Array contains duplicate items"));
+                    // Use custom comparer to find duplicates
+                    var duplicates = items
+                        .Where(x => x != null)
+                        .Select((item, index) => new { item, index })
+                        .Where(x => items
+                            .Where((y, idx) => idx != x.index)
+                            .Any(y => _customComparer!(x.item, y)))
+                        .Select(x => x.item)
+                        .Distinct()
+                        .ToList();
+
+                    if (duplicates.Any())
+                    {
+                        errors.Add(new ValidationError(_errorMessage ?? "Array contains duplicate items"));
+                    }
+                }
+                else
+                {
+                    var duplicates = items
+                        .Where(x => x != null)
+                        .GroupBy(x => x)
+                        .Where(g => g.Count() > 1)
+                        .Select(g => g.Key)
+                        .ToList();
+
+                    if (duplicates.Any())
+                    {
+                        errors.Add(new ValidationError(_errorMessage ?? "Array contains duplicate items"));
+                    }
                 }
             }
 
@@ -143,15 +191,20 @@ namespace SchemaValidation.Library.Validators
                 }
             }
 
-            foreach (var item in items)
+            for (var idx = 0; idx < items.Count; idx++)
             {
-                if (item != null)
+                var item = items[idx];
+                if (item == null)
                 {
-                    var itemResult = _itemValidator.Validate(item);
-                    if (!itemResult.IsValid)
-                    {
-                        errors.AddRange(itemResult.Errors);
-                    }
+                    errors.Add(new ValidationError(ErrorMessage ?? _errorMessage ?? $"Item at index {idx} cannot be null"));
+                    continue;
+                }
+
+                var itemResult = _itemValidator.Validate(item);
+                if (!itemResult.IsValid)
+                {
+                    // Prefix the child error to indicate the index for context
+                    errors.AddRange(itemResult.Errors.Select(e => new ValidationError($"Item at index {idx}: {e.Message}")));
                 }
             }
 

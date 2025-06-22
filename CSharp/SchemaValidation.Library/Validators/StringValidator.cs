@@ -132,12 +132,12 @@ public sealed class StringValidator : Validator<string>
 
         if (_minLength.HasValue && value.Length < _minLength.Value)
         {
-            return CreateError($"Minimum length is {_minLength.Value}");
+            return CreateError(ErrorMessage ?? $"Minimum length is {_minLength.Value}");
         }
 
         if (_maxLength.HasValue && value.Length > _maxLength.Value)
         {
-            return CreateError($"Maximum length is {_maxLength.Value}");
+            return CreateError(ErrorMessage ?? $"Maximum length is {_maxLength.Value}");
         }
 
         if (_pattern != null && !Regex.IsMatch(value, _pattern))

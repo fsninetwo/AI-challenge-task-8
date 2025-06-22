@@ -98,7 +98,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
         ArgumentNullException.ThrowIfNull(rule);
 
         _dependencyRules ??= new Dictionary<(string, string, string), (Func<T, object?, object?, bool>, string)>();
-        _dependencyRules[(propertyName, property1Name, property2Name)] = (rule, message ?? $"Property '{propertyName}' requires a valid phone number starting with '+1-' when the country is USA");
+        _dependencyRules[(propertyName, property1Name, property2Name)] = (rule, message ?? $"Property '{propertyName}' depends on missing or invalid value of '{property1Name}' or '{property2Name}'");
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
             var result = validator.Validate(propertyValue);
             if (!result.IsValid)
             {
-                errors.AddRange(result.Errors.Select(e => new ValidationError($"{propertyName}: {e.Message}")));
+                errors.AddRange(result.Errors.Select(e => new ValidationError(e.Message, propertyName)));
             }
         }
 
@@ -234,5 +234,21 @@ public sealed class ObjectValidator<T> : Validator<T> where T : class
     private ValidationResult<T> CreateError(string defaultMessage)
     {
         return ValidationResult.Failure<T>(ErrorMessage ?? defaultMessage);
+    }
+
+    /// <summary>
+    /// Disallows any properties not defined in the validation schema (strict validation).
+    /// </summary>
+    /// <returns>The current ObjectValidator instance for fluent chaining.</returns>
+    /// <remarks>
+    /// When strict schema mode is enabled, the validator will add an error if the target
+    /// object contains any property that is not explicitly defined in the schema passed
+    /// to the constructor. This mirrors the behaviour expected by tests calling the
+    /// <c>StrictSchema()</c> helper.
+    /// </remarks>
+    public ObjectValidator<T> StrictSchema()
+    {
+        _allowAdditionalProperties = false;
+        return this;
     }
 }
