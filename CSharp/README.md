@@ -7,7 +7,7 @@ This repository contains:
 * **SchemaValidation.Library** – the validation library itself.
 * **SchemaValidation.Core** – shared abstractions used by the library.
 * **SchemaValidation.Demo** – a console application that demonstrates real-world usage.
-* **SchemaValidation.Tests** – an xUnit test-suite with ~80 % line/branch coverage.
+* **SchemaValidation.Tests** – an xUnit test-suite with **132** passing tests and ~80 % line/branch coverage.
 
 ---
 
@@ -18,17 +18,17 @@ This repository contains:
 $ git clone <your-fork-url>
 $ cd CSharp
 
-# Restore, build & test (requires .NET 7 SDK or later)
+# Restore, build & run the full test-suite (requires the .NET 9 SDK – Preview 9.0.100 or later)
 $ dotnet restore
 $ dotnet build --configuration Release
-$ dotnet test
+$ dotnet test CSharp/SchemaValidation.sln
 ```
 
 Run the interactive demo:
 
 ```bash
 # Launch the console demo which validates several User instances
-dotnet run --project SchemaValidation.Demo
+dotnet run --project SchemaValidation.Demo/SchemaValidation.Demo.csproj
 ```
 
 ---
